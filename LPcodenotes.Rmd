@@ -1,0 +1,300 @@
+---
+title: "LP Research Diary"
+output: pdf_document
+fontsize: 12pt
+
+header-includes:
+- \usepackage{setspace}\doublespacing
+---
+
+# 06152022 MEETING
+
+# Generating realistic seeds
+- Idea for seeds: sample a butt ton (this is scientifically correct phrasing)
+- Use these samples to fit a distribution for REALISTIC combos of the parameters
+- Fit the JOINT distribution, don't only look at the marginals
+- Then sample from this "intelligent" distribution and start the simulation from the last historical data point!!!!!!
+
+# RNG current state and proposed reform
+- It seems like we do use CRN for binomial random variables? When we generate realistic seeds (realistic sample paths), we pass the seed to every random variable generation call -- including the binomial random variables
+- Using the new realistic seeds generation -- don't save the SEED, save the epidemiological parameter actualizations, and then use a seed (separate bit generator) for binomial random variables
+- Idea is to make realistic seed generation separate from the optimization -- currently, these two are conflated, leading to inefficiencies
+- Major inefficiencies with current generation of realistic seeds :
+  - For each policy, we simulate over all timepoints, and then after checking $R^2$, we throw out replications with unrealistic seeds
+  - We check $R^2$ for every seed for every policy, even after we have formed a training set and even if we read in a seeds file -- see bottom of ```samplepathseedsbug2.txt``` for an example
+- There are also inefficiencies with passing/returning unecessary objects, and also returning output for every single day for each performance measure -- for the optimization, we only need 1 aggregate datapoint for feasibility and the objective function respectively!
+- Below is a summary of the code from lines 95-194 in ```policy_search_functions.py```
+```{python eval=FALSE}
+
+# pseudocode summary of outer loops -- details deleted
+for each threshold candidate:
+  get (deterministic) simulation replications and check sqrt staffing rule
+  if feasible:
+    while number of realistic seeds < training set size:
+        get (stochastic) simulation replications
+            
+            # real code here
+            for sample_ij in out_sample_outputs:
+                sim_j, cost_j, policy_j, _vac_policy, seed_j, kwargs_j = sample_ij
+                real_hosp_end_ix = len(hosp_benchmark) 
+                IH_sim = sim_j['IHT'][0:real_hosp_end_ix]
+                IH_sim = IH_sim.sum(axis=(2,1))
+                f_benchmark = hosp_benchmark
+            
+                rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark))**2))/sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark)))**2)
+    
+                if rsq > 0.75:
+                    stoch_outputs_i.append(sample_ij)
+                    crn_seeds_i.append(seed_j)
+                    if len(stoch_outputs_i) == n_replicas_train:
+                        break
+```
+- Another benefit to separating ```calibration''' (generating realistic seeds) and simulation/optimization stages is that we do not need to pass candidate thresholds as arguments when simulating to get realistic seeds -- because whether or not a seed is realistic does not depend on the policy
+- Also see the following links for why we should use ```Generator``` instead of the currently implemented (but legacy) ```RandomState```
+  - https://numpy.org/doc/stable/reference/random/legacy.html
+  - https://numpy.org/neps/nep-0019-rng-policy.html
+  - https://builtin.com/data-science/numpy-random-seed
+  - https://albertcthomas.github.io/good-practices-random-number-generators/
+- From the first link:
+  - This usage is discouraged, as it is implemented via a global RandomState instance which is not advised on two counts: It uses global state, which means results will change as the code changes[.] It uses a RandomState rather than the more modern Generator.For backward compatible legacy reasons, we cannot change this.
+
+# Generating binomial random variables
+- Numpy source code urls (in particular see random_binomial in second link):
+  - https://github.com/numpy/numpy/blob/main/numpy/random/_generator.pyx
+  - https://github.com/numpy/numpy/blob/main/numpy/random/src/distributions/distributions.c
+- Python implementation
+  - if $p \le 0.5$ and $pn \le 30$ or $(1-p)n \le 30$, use inversion
+  - otherwise use BTPE -- which is an accept-reject method that only works when $n \min(p, 1-p) \ge 10$, which dominates other constant memory algorithms (see paper for details)
+- I would think that CRN would not do much with accept-reject? Since different numbers of uniform random variables are used? And yet...
+
+# Variance reduction using CRN for binomial random variables
+- Made a baby SEIRS model (without vital dynamics, i.e., no births or deaths) -- the 2nd S refers to us allowing recovered individuals to return to a susceptible state
+- Very rough grid -- only iterates once a day
+- The overall population N changes due to discretization error -- when I take away randomness though, N is always the same (gut check for correctness of code)
+- Based on https://docs.idmod.org/projects/emod-hiv/en/latest/model-seir.html
+- Code is in ```SEIR_toy.py```
+```{python eval=FALSE}
+# all have S0 = 1e6, end_time = 1e3, num_reps = 1e2
+# diseaseA: beta = 0.2 and sigma = 0.5 (50% of infection after exposure)
+# diseaseB: similar to diseaseA, but slightly higher beta and sigma
+# diseaseC: beta = 0.9 (very high exposure rate), sigma = 0.1 (lower infection rate), 
+#           xi = 0.5 (high reinfection rate)
+
+diseaseA_seed1 = SEIR(int(1e6)-int(1e3), 0, int(1e3), 0, .2, .5, .1, .05, int(1e3), 1)
+diseaseA_seed1_data = diseaseA_seed1.run_multiple_reps(int(1e2))
+
+diseaseB_seed1 = SEIR(int(1e6)-int(1e3), 0, int(1e3), 0, .3, .6, .1, .05, int(1e3), 1)
+diseaseB_seed1_data = diseaseB_seed1.run_multiple_reps(int(1e2))
+
+diseaseB_seed2 = SEIR(int(1e6)-int(1e3), 0, int(1e3), 0, .3, .6, .1, .05, int(1e3), 2)
+diseaseB_seed2_data = diseaseB_seed2.run_multiple_reps(int(1e2))
+
+diseaseC_seed1 = SEIR(int(1e6)-int(1e3), 0, int(1e3), 0, .9, .1, .1, .5, int(1e3), 1)
+diseaseC_seed1_data = diseaseC_seed1.run_multiple_reps(int(1e2))
+
+diseaseC_seed2 = SEIR(int(1e6)-int(1e3), 0, int(1e3), 0, .9, .1, .1, .5, int(1e3), 2)
+diseaseC_seed2_data = diseaseC_seed2.run_multiple_reps(int(1e2))
+
+A_B_regular = compute_sample_variance_of_difference(diseaseA_seed1_data, diseaseB_seed2_data)
+A_B_CRN = compute_sample_variance_of_difference(diseaseA_seed1_data, diseaseB_seed1_data)
+
+A_C_regular = compute_sample_variance_of_difference(diseaseA_seed1_data, diseaseC_seed2_data)
+A_C_CRN = compute_sample_variance_of_difference(diseaseA_seed1_data, diseaseC_seed1_data)
+```
+- I'm comparing A versus B (two similar diseases)
+  - Sample variance of difference without CRN and with CRN: about $18.1$mil versus $16.2$mil (roughly $10\%$ reduction)
+- And also B versus C (two different diseases)
+  - Sample variance of difference without CRN and with CRN: about $57.8$mil versus $38.1$ (roughly $29\%$ reduction)
+  
+# bi-PASS
+- Important note: CRN actually makes bi-PASS worse (when systems have different variances, which presumably is the case here) -- but for the known standard PSS case, which is our case for feasibility checking, CRN does not have a negative effect
+- Does CRN even help though, if we are not doing pairwise comparisons for feasibility checking?
+- After resolving the generating realistic seeds issue and separating calibration from simulation/optimization, can implement PSS for chance constraint feasibility checking "embedded" within the policy search function
+- Then the question is whether to implement bi-PASS for optimality, and if so, how to implement it (as a wrapper on top)?
+- Stochastic dominance -- maybe set alpha level very small ($1-\alpha = 0.99$) -- and if a policy is infeasible, also eliminate all ```looser''' policies?
+  - The issue is there seems to be a domino effect of false eliminations
+  - If there are $100$ policies stricter than policy $A$, which is actually chance constraint feasible, then if any of the $100$ policies are falsely eliminated, $A$ gets eliminated too.
+- Verify/compare results to different optimization problems run on the original version of the code
+- LP note/idea for later: related to BLN's PASS as systems-revealed-sequentially screening -- generate solutions on the fly based on sqrt staffing rule and hospital constraint feasibility? Woof!
+
+# Also briefly mention code documentation...
+
+\newpage
+
+# CODE NOTES
+
+# Explanation of Code Notes
+
+- LP's notes on the code (potentially sassy and unfiltered, apologies)
+- Based on my personal understanding......
+- First pass -- on second pass will add more detail
+- Overview of functions but skipped function and class arguments for now
+
+# Typos
+- triger 
+- intervension
+- transmision (I think)
+
+# High Level
+
+Add this to top of main_allocation.py
+IMHO this is a better fix than futzing with $PYTHONPATH
+
+```{python blah}
+import sys
+sys.path.append("//Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation")
+sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main")
+```
+
+## Categorization of Files
+
+## Acronyms
+
+- SC: school closure
+- CO: cocooning
+- SD: social distancing
+
+# Issues
+
+## debugging trigger_policy_search
+- concerned about seed generation...
+- I think we are unnecessarily generating seeds for each policy, and this is very time consuming
+- sample paths should not depend on the policy
+
+## cannot run optimization 
+- supposedly removing ```-gt [-1, 5, 15, 30, 50]``` and not specifying a specific threshold runs the optimization
+- this is not the case -- this doesn't work -- the code then only runs [-1, 5, 15, 30, 50], which is hardcoded as threshold candidate(s) in tiers5_opt_Final.json
+- austin_test_IHT.json has ```grid_size``` -- unclear what this does lol
+- I thought the optimization was supposed to automatically generate candidates according to the grid size and predetermined upper and lower bounds -- but the only way I can get the optimization to work is by explicitly coding the threshold candidates for each level that I want to test
+- Guyi said that if the last date in ```transmission.csv``` is before the end of the simulation time (given in some setup file), then the optimization should trigger without a prespecified threshold -- but this is not true
+- fix: explicitly specify candidate thresholds to test in tiers json file, e.g. ```[50, 55]``` (list)
+- fix: set candidate thresholds to null in tiers json file, and adjust grid_size in config >> austin json file and also ```-pub``` (policy upper bound) argument as script argument
+
+# main_allocation in depth
+- ```parse_arguments()``` in ```utils.py``` -- takes the command line arguments -- reads files and also has computing toggles (matplotlib stuff)
+- question: what is the seeds.p file? Nazlican's github says it will be generated in /output -- I'm guessing I need to first run this to get the seeds?
+- Kevin's tutorial and my best guess poking around the files: -seed=new_seed.p (it's in the ```instances/austin``` folder)
+- Ok, cool -- I still get the runtime warning -- but I get a sensible rsq -- there are differences (cost differences) compared to kevin's results, but this is better -- i noticed that the filenames are different so it's possible that there's different data too
+- The tiers ```tiers5_opt_Final.json```-- specify transmission reduction and costs at each stage -- but then the optimization chooses the actual levels for each stage
+- instance creates instance of ```Instance``` class (defined in ```__init__.py```) -- loads historical data and epidemiological parameters
+- ```selected_policy``` is an instance of ```MultiTierPolicy```  (abbreviated MTP) class from ```TriggerPolicies.py```-- 
+- so for a constant policy, a given date is not needed -- I guess it's only to determine the step functions and linear functions type policies -- I don't think I will need this
+- ```selected_vaccine_policy``` is an instance of ```VaccineAllocationPolicy``` (abbreviated VAP) class from ```vaccine_policies``` 
+- then either ```trigger_policy_search_det``` or ```trigger_policy_search``` from ```policy_search_functions.py```
+  - ```trigger_policy_search```: "search for optimal trigger policy with a fixed vaccine policy" -- this is very vague and confusing so let's figure this out... -- 
+  - what does "build interventions according to input tiers" mean? this goes back to my confusion about what an intervention is specifically
+  - ```build_multi_tier_policy_candidates``` from ```trigger_policies.py``` -- builds candidate policies? 
+  - I think the candidate thresholds (defined in tiers .json file) are used to guide the grid search? But I need to double check
+  - within ```threshold_policies.py```, ```run_multi_calendar``` is used in ```policy_multi_iterator```, which creates an iterator of the candidate thresholds for each tier
+  - ```policy_multi_iterator``` calls ```build_multi_tier_policy_candidates```
+  - within ```trigger_policy_search```...
+    - ```simulate_p``` which lives in ```SEIYARDH.py``` -- and this maps ```system_simulation``` -- which runs ```simulate_vaccine``` which calls ```simulate_t``` as a subroutine
+    - then find the best feasible candidate! but skip this if there is only one candidate
+- So I guess if seeds are not specified... we do accept reject within ```trigger_policy_search``` to generate seeds with rsq > 0.75? It's not exactly rsq so apparently it does not have to be within [0,1].
+
+# File Overviews
+
+## main_allocation
+- imports ```utils```
+- imports ```load_config_file``` and ```change_paths``` from ```VaccineAllocation''' (folder) but I don't know where those are????
+- imports ```instances''' (folder)
+- imports ```objective_functions```, ```trigger_policies```, ```vaccine_policies```, ```policy_search_functions```
+- essentially calls ```trigger_policy_search``` (or the deterministic version depending on the arguments)
+
+## main_least_squares
+- imports ```load_config_file``` and ```instances_path``` from ```VaccineAllocation```
+- imports ```instances```, ```objective_functions```, ```vaccine_policies```, ```least_squares_fit```
+- no functions
+- creates ```transmision``` csv file
+- from nazlican's github: fit transmission-reduction parameters and certain dynamics in use of the ICU and hospital duration
+
+## objective_functions
+- as the name says :)
+- does not import any other COVID19 files
+- ```multi_tier_objective``` and ```multi_tier_objective_ACS``` functions
+
+## pipelinemultitier
+- imports ```reporting``` (folder)
+- from nazlican's github: generating plots after creating output files
+- functions ```read_hosp```, ```icu_pipeline```, ```report```
+
+## interventions
+- imports ```SEIYAHRD``` only
+- ```Intervension``` class -- has attributes for school closure y/n, cocooning level, social distancing level, some epidemiological parameters
+- There is an unnecessary use of ```@property``` here unfortunately -- this slows down the code
+- ```create_intLevel``` -- get intervention levels from school closure, cocooning, social distancing? 
+- ```form_interventions''' -- make list of ```Intervension``` objects -- also not totally sure what this does
+
+## main_ACS
+- Going to skip along with ```ACS_script``` for now
+
+## ACS_script
+- Going to skip along with ```main_ACS``` for now
+
+## least_squares_fit
+- imports ```pipelinemultitier```, ```interventions```, ```SEIYAHRD```, ```config``` (folder) from ```VaccineAllocation``` (folder), ```threshold_policy```, ```objective_functions```, ```trigger_policies```, ```vaccine_policies```
+- "utility" functions for computing least squares: ```deterministic_path```, ```residual_error```, ```least_squares_fit```, ```run_fit```
+
+## epi_params
+- does not import any other COVID19 modules
+- ```EpiSetup``` class for SEIR simulation parameters and base contact matrices 
+- ```ParamDistribution``` class for parameters of the random distributions
+
+## policy_search_functions
+- imports ```interventions```, ```SEIYAHRD```, ```utils```, ```threshold_policy```
+- also imports from VaccineAllocation: ```config```, ```logger```, ```output_path```
+- ```trigger_policy_search``` -- search for optimal trigger policy given fixed vaccine policy
+- ```trigger_policy_search_det``` -- above function but deterministically
+- ```capacity_policy_search``` -- not sure what the difference between this and the first function is? is this the overall optimization?
+
+## SEIYAHRD
+- Refers to S, E, IA, IY, IH, R, D epidemiological variables
+- I'm just going to call this the SEIR simulation
+- Imports ```utils```, ```vaccine_policies```, ```trigger_policies```, ```config```
+- ```immune_escape``` -- moves recovered and vaccinated individuals to waning efficacy susceptible compartment
+- ```simulate_vaccine``` -- loops over days $t$ to simulate SEIR simulation -- if seed is ```-1``` then run deterministically
+- ```simulate_t``` -- subroutine for ```simulate_vaccine``` -- simulates for each $t$
+- ```rv_gen``` -- either returns expected value if deterministic simulation or returns binomial random variable for SEIR simulation transitions
+- ```system_simulation``` -- gets mapped when running parallel simulations -- calls ```simulate_vaccine```
+- ```simulate_p``` -- runs simulation in parallel -- maps ```system_simulation'''
+- ```dummy_cost``` -- returns $0$ lol
+- ```fix_policy``` -- just returns ```z[t]``` 
+- ```get_next_month``` -- function for date and time shenanigans
+- ```discrete_approx``` -- separate each day into timesteps
+- ```SimCalendar``` class -- a calendar to map time steps to days and determine if the day is a weekday/weekend/holiday/etc
+  - Has various methods for date fetching I will not detail here
+  - Importantly, has methods such as ```load_predefined_lockdown``` -- which I presume are also important for incorporating previous data and previous gov interventions (calibration and sample path step)? Double check this 
+  
+## threshold_policy
+- Module for computing threshold policies
+- Imports ```trigger_policies```, ```config```
+- ```run_multi_calendar``` -- called as subroutine in the other 3 functions -- creates ```z_ini``` (not sure yet but some sort of initial state), ```SD_state``` which is I'm guessing related to ```sd_levels``` which maps lockdown status to transmission reduction, and ```feasible_interventions```
+- ```policy_multi_iterator``` -- creates iterator of candidate thresholds for each tier -- goes into ```simulate_p``` for parallel use in module ```SEIYAHRD```
+- ```stochastic_iterator``` -- creates iterator for different replications and changes the seed -- also used in ```simulate_p```
+- ```stoch_simulation_iterator``` -- same as above but for the SEIR simulation? 
+
+## trigger_policies
+- different trigger policies to simulate
+- this file creates the candidate mesh of feasible policies to simulate (because we cannot handle ``true'' optimization, we have to grid search/test)
+- 3 functions: ```build_multi_tier_policy_candidates```, ```build_ACS_policy_candidates```, ```build_CDC_policy_thresholds```
+- 3 corresponding classes: ```CDCTierPolicy```, ```MultiTierPolicy```, ```MultiTierPolicy_ACS```
+
+## vaccine_params
+- imports ```config```
+- ```Vaccine``` class and ```Vaccine_group``` class
+  
+## vaccine_policies
+- different vaccine allocation policies to simulate
+- imports ```trigger_policies``` (only uses ```MultiTierPolicy```)
+- ```VaccineAllocationPolicy``` class
+- ```fix_hist_allocation``` -- fix historical attributes
+- ```find_rollout_allocation``` -- assign vaccine to active group until end time or all vaccinated
+
+## utils
+- does not import any of the other COVID19 modules
+- not super relevant IMHO
+- has some mathematical functions, a timing method, and stuff for parsing
+
+## __init__
+- like utils, does not import any other COVID19 modules, not super relevant
+- just for setting project paths

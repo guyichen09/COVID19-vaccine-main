@@ -1,0 +1,38 @@
+python3 main_allocation.py austin -f setup_data_Final.json -t tiers5_opt_Final.json -train_reps 0 -test_reps 1 -f_config austin_test_IHT.json -n_proc 1 -tr transmission.csv -hos austin_real_hosp_updated.csv  -v_allocation vaccine_allocation_fixed.csv -n_policy 7  -v_boost booster_allocation_fixed.csv -gt [-1,5,15,30,50]
+Considering fixed_policy
+Total allocated vaccine first dose (within-proportion):
+[[0.     0.    ]
+ [0.408  0.6317]
+ [0.9056 0.9019]
+ [0.9554 0.9018]
+ [0.9901 0.9901]]
+Total allocated waneddose (within-proportion):
+[[0.     0.    ]
+ [0.3984 0.6221]
+ [0.8832 0.9014]
+ [0.9278 0.9018]
+ [0.9901 0.9901]]
+Total allocated booster dose (within-proportion):
+[[0.     0.    ]
+ [0.2521 0.3975]
+ [0.5576 0.5849]
+ [0.5825 0.5862]
+ [0.6436 0.6436]]
+783
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+Simulated candidates: 1: {'calls': 1, 'max_time': 11.587204933166504, 'avg_time': 11.587204933166504}
+simulate_p     : {'calls': 1, 'max_time': 11.587204933166504, 'avg_time': 11.587204933166504}
+rsq -2.50604665969338
+rsq -1.4895719970094832
+rsq -1.5130302933196433
+rsq -1.512548825166892
+rsq -0.4349179091968176
+rsq -1.2630330205107296
+rsq 0.8891169242283771
+Got 1 replicas sampling 7
+Optimized policy: Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_30_30_Stage5_50_50
+Cost: 1171829.0
+Inf scenarios: 0 out of 1
+simulate_p     : {'calls': 8, 'max_time': 23.454609155654907, 'avg_time': 20.140374064445496}
+[1000007]
