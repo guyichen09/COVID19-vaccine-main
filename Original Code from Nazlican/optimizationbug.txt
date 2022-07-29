@@ -1,0 +1,262 @@
+(base) pa-dhcp-10-120-226-126:VaccineAllocation lindapei$ python3.7 main_allocation.py austin -f=setup_data_Final.json -t=tiers_LP_debug.json -train_reps=2 -test_reps=1 -f_config=austin_test_IHT_LP_debug.json -n_proc=12 -tr=transmission.csv -hos=austin_real_hosp_updated.csv  -v_allocation=vaccine_allocation_fixed.csv -n_policy=7 -v_boost=booster_allocation_fixed.csv -pub=60 #-gd="2021,5,5"
+
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/epi_params.py:55: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  setattr(epi_params, k, np.array(v))
+Considering fixed_policy
+Total allocated vaccine first dose (within-proportion):
+[[0.     0.    ]
+ [0.408  0.6317]
+ [0.9056 0.9019]
+ [0.9554 0.9018]
+ [0.9901 0.9901]]
+Total allocated waneddose (within-proportion):
+[[0.     0.    ]
+ [0.3984 0.6221]
+ [0.8832 0.9014]
+ [0.9278 0.9018]
+ [0.9901 0.9901]]
+Total allocated booster dose (within-proportion):
+[[0.     0.    ]
+ [0.2521 0.3975]
+ [0.5576 0.5849]
+ [0.5825 0.5862]
+ [0.6436 0.6436]]
+783
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+Simulated candidates: 4: {'calls': 1, 'max_time': 16.849234104156494, 'avg_time': 16.849234104156494}
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_50_50_Stage5_150_150
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+1171757
+rsq 0.6939302054013835
+1170641
+rsq -6.722806037072354
+1170641
+rsq -1.5144778722931918
+1173026
+rsq 0.0579124608528484
+1171829
+rsq -1.4793948145129212
+1171424
+rsq 0.33350843711025235
+1171869
+rsq -1.278656181971075
+1170641
+rsq -39.087695366009314
+1171649
+rsq -0.2920381099574354
+1172009
+rsq 0.7692967256932988
+1170641
+rsq -34.563871865297216
+1170641
+rsq -14.788248875252599
+1171802
+rsq 0.05634397595734353
+1170641
+rsq -25.33713850278051
+1173620
+rsq -1.6321160814587579
+1170641
+rsq -1.5162949491702107
+1174295
+rsq -1.2094265484219302
+1170641
+rsq -44.47425085236611
+1171883
+rsq 0.8134271520582448
+        CRN SEEDS [22, 32], Deviation []
+        got 2 replicas sampling 24
+        Inf reps: 0  Expected Cost: 1171946 best cost: inf
+        New feasible solution -> inf reps 0 : exp. cost: 1171946.0
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_50_50_Stage5_1000_1000
+1172009
+rsq 0.7692967256932988
+1171883
+rsq 0.8134271520582448
+        got 2 replicas sampling 12
+        Inf reps: 0  Expected Cost: 1171946 best cost: 1171946.0
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_100_100_Stage5_150_150
+1172009
+rsq 0.7692967256932988
+1171883
+rsq 0.8134271520582448
+        got 2 replicas sampling 12
+        Inf reps: 0  Expected Cost: 1171946 best cost: 1171946.0
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_100_100_Stage5_1000_1000
+1172009
+rsq 0.7692967256932988
+1171883
+rsq 0.8134271520582448
+        got 2 replicas sampling 12
+        Inf reps: 0  Expected Cost: 1171946 best cost: 1171946.0
+SRS pruned 0 out of 4 candidates
+simulate_p     : {'calls': 6, 'max_time': 70.3798189163208, 'avg_time': 40.961310704549156}
+rsq -30.275919357873136
+rsq -1.487149058010088
+rsq 0.8016540897749467
+Got 1 replicas sampling 12
+Optimized policy: Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_50_50_Stage5_150_150
+Cost: 1171694.0
+Inf scenarios: 0 out of 1
+simulate_p     : {'calls': 7, 'max_time': 74.78865504264832, 'avg_time': 45.793788467134746}
+[1000014]
+Stage1_-1_-1_Stage2_5_5_Stage3_15_15_Stage4_50_50_Stage5_150_150
+
+
+
+
+(base) pa-dhcp-10-120-226-126:VaccineAllocation lindapei$ python3.7 main_allocation.py austin -f=setup_data_Final.json -t=tiers_LP_debug.json -train_reps=2 -test_reps=1 -f_config=austin_test_IHT_LP_debug.json -n_proc=12 -tr=transmission.csv -hos=austin_real_hosp_updated.csv  -v_allocation=vaccine_allocation_fixed.csv -n_policy=7 -v_boost=booster_allocation_fixed.csv -pub=60 #-gd="2021,5,5"
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/epi_params.py:55: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  setattr(epi_params, k, np.array(v))
+Considering fixed_policy
+Total allocated vaccine first dose (within-proportion):
+[[0.     0.    ]
+ [0.408  0.6317]
+ [0.9056 0.9019]
+ [0.9554 0.9018]
+ [0.9901 0.9901]]
+Total allocated waneddose (within-proportion):
+[[0.     0.    ]
+ [0.3984 0.6221]
+ [0.8832 0.9014]
+ [0.9278 0.9018]
+ [0.9901 0.9901]]
+Total allocated booster dose (within-proportion):
+[[0.     0.    ]
+ [0.2521 0.3975]
+ [0.5576 0.5849]
+ [0.5825 0.5862]
+ [0.6436 0.6436]]
+783
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+Simulated candidates: 4: {'calls': 1, 'max_time': 17.404390335083008, 'avg_time': 17.404390335083008}
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_10_10_Stage4_100_100_Stage5_150_150
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
+  ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
+1172009
+rsq 0.6939302054013835
+1170641
+rsq -6.722806037072354
+1170641
+rsq -1.5144778722931918
+1171712
+rsq 0.0579124608528484
+1171865
+rsq -1.4793948145129212
+1171487
+rsq 0.33350843711025235
+1171995
+rsq -1.278656181971075
+1170641
+rsq -39.087695366009314
+1172000
+rsq -0.2920381099574354
+1172135
+rsq 0.7692967256932988
+1170641
+rsq -34.563871865297216
+1170641
+rsq -14.788248875252599
+1171838
+rsq 0.05634397595734353
+1170641
+rsq -25.33713850278051
+1173071
+rsq -1.6321160814587579
+1170641
+rsq -1.5162949491702107
+1171865
+rsq -1.2094265484219302
+1170641
+rsq -44.47425085236611
+1172135
+rsq 0.8134271520582448
+        CRN SEEDS [22, 32], Deviation []
+        got 2 replicas sampling 24
+        Inf reps: 0  Expected Cost: 1172135 best cost: inf
+        New feasible solution -> inf reps 0 : exp. cost: 1172135.0
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_10_10_Stage4_100_100_Stage5_1000_1000
+1172135
+rsq 0.7692967256932988
+1172135
+rsq 0.8134271520582448
+        got 2 replicas sampling 12
+        Inf reps: 0  Expected Cost: 1172135 best cost: 1172135.0
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_50_50_Stage4_100_100_Stage5_150_150
+1170929
+rsq 0.7692967256932988
+1170803
+rsq 0.8134271520582448
+        got 2 replicas sampling 12
+        Inf reps: 0  Expected Cost: 1170866 best cost: 1172135.0
+        New feasible solution -> inf reps 0 : exp. cost: 1170866.0
+seed_i: -1
+Considering: Stage1_-1_-1_Stage2_5_5_Stage3_50_50_Stage4_100_100_Stage5_1000_1000
+1170929
+rsq 0.7692967256932988
+1170803
+rsq 0.8134271520582448
+        got 2 replicas sampling 12
+        Inf reps: 0  Expected Cost: 1170866 best cost: 1170866.0
+SRS pruned 0 out of 4 candidates
+simulate_p     : {'calls': 6, 'max_time': 71.16779279708862, 'avg_time': 40.07692801952362}
+rsq -30.275919357873136
+rsq -1.487149058010088
+rsq 0.8016540897749467
+Got 1 replicas sampling 12
+Optimized policy: Stage1_-1_-1_Stage2_5_5_Stage3_50_50_Stage4_100_100_Stage5_150_150
+Cost: 1170929.0
+Inf scenarios: 0 out of 1
+simulate_p     : {'calls': 7, 'max_time': 72.80956792831421, 'avg_time': 44.753019435065134}
+[1000014]
+Stage1_-1_-1_Stage2_5_5_Stage3_50_50_Stage4_100_100_Stage5_150_150

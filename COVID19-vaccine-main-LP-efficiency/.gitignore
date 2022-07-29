@@ -1,0 +1,32 @@
+.DS_store
+.vscode/
+.VSCodeCounter/
+*__pycache__/
+*.env
+
+# data file
+*.pkl
+*.mat
+*.pdf
+*.sh
+
+# Math prog files
+*.lp
+*.ilp
+*.mps
+
+
+# unwanted output
+*./temp
+*mip_sol*.pdf
+VaccineAllocation/plots/*.pdf
+VaccineAllocation/output/*
+VaccineAllocation/reporting/reports/*
+VaccineAllocation/reporting/temp/*
+VaccineAllocation/instances/austin/archieved/*
+# Latex output
+*.aux
+*.log
+*./temp/*.pdf
+*.zip
+*.zip
