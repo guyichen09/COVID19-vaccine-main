@@ -14,8 +14,8 @@ if __name__ == '__main__':
     # sys.path.append("/home/lpei/scratch/06202022/COVID19-vaccine-main/VaccineAllocation")
     # sys.path.append("/home/lpei/scratch/06202022/COVID19-vaccine-main")
 
-    sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation")
-    sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main")
+    sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/COVID19-vaccine-main-LP-efficiency/VaccineAllocation")
+    sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/COVID19-vaccine-main-LP-efficiency/")
 
     import multiprocessing as mp
     from utils import parse_arguments

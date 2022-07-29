@@ -116,10 +116,7 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
     for t in range(T - 1):
         kwargs["acs_criStat"] = eval(kwargs["acs_policy_field"])[:t]
         kwargs["t_start"] = len(instance.real_hosp)
-       
-        # Get dynamic intervention and corresponding contact matrix
-        # k_t, kwargs = policy(t, ToIHT=eval(kwargs["policy_field"])[:t], IH=IH[:t], ToIY=ToIY[:t], ICU=ICU[:t], **kwargs)
-        
+
         v_policy = simulate_t(instance, v_policy, t, epi_rand, epi_orig, rnd_epi, seed, **kwargs)
         S = np.zeros((T, A, L))
         E = np.zeros((T, A, L))
@@ -142,25 +139,26 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
         ToIYD = np.zeros((T - 1, A, L))
         ToIA = np.zeros((T - 1, A, L))
         ToIY = np.zeros((T - 1, A, L))
-        # Track hospitalization variables according to vaccine status:
-        ICU_vac = np.zeros((T, A, L))
-        ToIHT_vac = np.zeros((T - 1, A, L))
-        IH_vac = np.zeros((T, A, L))
 
-        ICU_unvac = np.zeros((T, A, L))
-        ToIHT_unvac = np.zeros((T - 1, A, L))
-        IH_unvac = np.zeros((T, A, L))
+        # Track hospitalization variables according to vaccine status:
+        # ICU_vac = np.zeros((T, A, L))
+        # ToIHT_vac = np.zeros((T - 1, A, L))
+        # IH_vac = np.zeros((T, A, L))
+
+        # ICU_unvac = np.zeros((T, A, L))
+        # ToIHT_unvac = np.zeros((T - 1, A, L))
+        # IH_unvac = np.zeros((T, A, L))
         
         for v_group in v_policy._vaccine_groups:
             # Update compartments
-            if v_group.v_name == 'v_0':
-                S0=v_policy._vaccine_groups[0].S
-            if v_group.v_name == 'v_1':
-                S1=v_policy._vaccine_groups[1].S
-            if v_group.v_name == 'v_2':
-                S2=v_policy._vaccine_groups[2].S
-            if v_group.v_name == 'v_3':
-                S3=v_policy._vaccine_groups[3].S
+            # if v_group.v_name == 'v_0':
+            #    S0=v_policy._vaccine_groups[0].S
+            # if v_group.v_name == 'v_1':
+            #    S1=v_policy._vaccine_groups[1].S
+            # if v_group.v_name == 'v_2':
+            #    S2=v_policy._vaccine_groups[2].S
+            # if v_group.v_name == 'v_3':
+            #    S3=v_policy._vaccine_groups[3].S
                 
             S += v_group.S
             E += v_group.E
@@ -185,49 +183,43 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
             ToIY += v_group.ToIY
             dS = S[1:, :] - S[:-1, :]
             
-            if v_group.v_name == 'v_0':
-                ICU_unvac = v_group.ICU
-                ToIHT_unvac= v_group.ToIHT
-                IH_unvac = v_group.IH
+            # if v_group.v_name == 'v_0':
+            #    ICU_unvac = v_group.ICU
+            #    ToIHT_unvac = v_group.ToIHT
+            #    IH_unvac = v_group.IH
        
-            if v_group.v_name == 'v_2':
-                ICU_vac = v_group.ICU
-                ToIHT_vac= v_group.ToIHT
-                IH_vac = v_group.IH
+            # if v_group.v_name == 'v_2':
+            #    ICU_vac = v_group.ICU
+            #    ToIHT_vac= v_group.ToIHT
+            #    IH_vac = v_group.IH
                 
         total_imbalance = np.sum(S[t] + E[t] + IA[t] + IY[t] + IH[t] + R[t] + D[t] + PA[t] + PY[t] + ICU[t]) - np.sum(N)
-       
-        # print(total_imbalance)
 
         assert np.abs(total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {instance.cal.calendar[t]}, {t}'
     
-    moving_avg_len = config['moving_avg_len']
-    ToIHT_temp = np.sum(ToIHT, axis=(1, 2))[:T]
-    ToIY_temp = np.sum(ToIY, axis=(1, 2))[:T]
-    IHT_temp = np.sum(IH, axis=(1, 2))[:T] +np.sum(ICU, axis=(1, 2))[:T]
-    ToIHT_moving = [ToIHT_temp[i: min(i + moving_avg_len, T)].mean() for i in range(T-moving_avg_len)]
-    ToIHT_total = [ToIHT_temp[i: min(i + moving_avg_len, T)].sum()* 100000/np.sum(N, axis=(0,1))  for i in range(T-moving_avg_len)]
-    ToIY_moving = [ToIY_temp[i: min(i + moving_avg_len, T)].sum()* 100000/np.sum(N, axis=(0,1)) for i in range(T-moving_avg_len)] 
-    IHT_moving = [IHT_temp[i: min(i + moving_avg_len, T)].mean()/instance.hosp_beds for i in range(T-moving_avg_len)]
-    ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
-
-    # LP EDIT SMH
-    # ICU_ratio[0] = 0
-    ###############
+    # moving_avg_len = config['moving_avg_len']
+    # ToIHT_temp = np.sum(ToIHT, axis=(1, 2))[:T]
+    # ToIY_temp = np.sum(ToIY, axis=(1, 2))[:T]
+    # IHT_temp = np.sum(IH, axis=(1, 2))[:T] +np.sum(ICU, axis=(1, 2))[:T]
+    # ToIHT_moving = [ToIHT_temp[i: min(i + moving_avg_len, T)].mean() for i in range(T-moving_avg_len)]
+    # ToIHT_total = [ToIHT_temp[i: min(i + moving_avg_len, T)].sum()* 100000/np.sum(N, axis=(0,1))  for i in range(T-moving_avg_len)]
+    # ToIY_moving = [ToIY_temp[i: min(i + moving_avg_len, T)].sum()* 100000/np.sum(N, axis=(0,1)) for i in range(T-moving_avg_len)]
+    # IHT_moving = [IHT_temp[i: min(i + moving_avg_len, T)].mean()/instance.hosp_beds for i in range(T-moving_avg_len)]
+    # ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T])
 
     output = {
         'S': S,
-        'S0': S0,
-        'S1': S1,
-        'S2': S2,
-        'S3': S3,
+        # 'S0': S0,
+        # 'S1': S1,
+        # 'S2': S2,
+        # 'S3': S3,
         'E': E,
         'PA': PA,
         'PI': PY,
         'IA': IA,
         'IY': IY,
         'IH': IH,
-        'IHT_moving': IHT_moving,
+        # 'IHT_moving': IHT_moving,
         'R': R,
         'D': D,
         'ICU': ICU,
@@ -245,29 +237,28 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
         'capacity': kwargs["_capacity"],
         'ToICU': ToICU,
         'ToIHT': ToIHT,
-        'ToIHT_moving': ToIHT_moving,
-        'ToIHT_total': ToIHT_total,
-        'ToIY_moving': ToIY_moving,
+        # 'ToIHT_moving': ToIHT_moving,
+        # 'ToIHT_total': ToIHT_total,
+        # 'ToIY_moving': ToIY_moving,
         'ToICUD': ToICUD,
         'ToIYD': ToIYD,
         'ToIA': ToIA,
         'ToIY': ToIY,
         'IHT': ICU+IH,
-        'ICU_vac': ICU_vac,
-        'ToIHT_vac': ToIHT_vac,
-        'IH_vac': IH_vac,
-        'ICU_unvac': ICU_unvac,
-        'ToIHT_unvac': ToIHT_unvac,
-        'IH_unvac': IH_unvac,
-        'ICU_ratio': ICU_ratio
+        # 'ICU_vac': ICU_vac,
+        # 'ToIHT_vac': ToIHT_vac,
+        # 'IH_vac': IH_vac,
+        # 'ICU_unvac': ICU_unvac,
+        # 'ToIHT_unvac': ToIHT_unvac,
+        # 'IH_unvac': IH_unvac,
+        # 'ICU_ratio': ICU_ratio
         }
 
     return output
 
-
 def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=-1,  **kwargs):
 
-        T, A, L = instance.T, instance.A, instance.L
+        A, L = instance.A, instance.L
         N = instance.N
         calendar = instance.cal
 
@@ -307,21 +298,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                                        instance.cal.fixed_transmission_reduction[t],
                                        N / N.sum(),
                                        calendar.get_day_type(t))
-            # else:
-            #     phi_t = instance.epi.effective_phi(instance.cal.schools_closed[t],
-            #                            instance.cal.fixed_cocooning[t],
-            #                            instance.cal.fixed_transmission_reduction[t],
-            #                            N / N.sum(),
-            #                            calendar.get_day_type(t))
-
-            # if interventions[k_t].SD != instance.cal.fixed_transmission_reduction[t]:
-            #     print(interventions[k_t].SD, instance.cal.fixed_transmission_reduction[t])
-
-            # if interventions[k_t].CO != instance.cal.fixed_cocooning[t]:
-            #    print(interventions[k_t].CO, instance.cal.fixed_cocooning[t])
-
-            # print(t, interventions[k_t].SC, interventions[k_t].SD, interventions[k_t].CO, policy._tier_history[t])
-            # print(t, interventions[k_t].SD, instance.cal.fixed_transmission_reduction[t], interventions[k_t].CO, instance.cal.fixed_cocooning[t])
 
             # if the current time is within the history
             if config['det_history'] and t < len(instance.real_hosp):
@@ -360,8 +336,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                     epi.update_icu_params(kwargs["rd_rate"])
             else:
                 epi.update_icu_all(t,instance.otherInfo)
-             
-                
 
             rate_E = discrete_approx(epi.sigma_E, step_size)
             rate_IYR = discrete_approx(np.array([[(1 - epi.pi[a, l]) * epi.gamma_IY * (1 - epi.alpha4) for l in range(L)] for a in range(A)]), step_size)
@@ -379,7 +353,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
             if t >= 711: #date corresponding to 02/07/2022
                 rate_immune = discrete_approx(epi.immune_evasion, step_size) 
 
-                
             for _t in range(step_size):
                 # Dynamics for dS
 
@@ -427,9 +400,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                         v_policy._vaccine_groups[3]._S[_t + 1] = v_policy._vaccine_groups[3]._S[_t + 1] + immune_escape_R
                     
                     v_groups._S[_t + 1] = v_groups._S[_t + 1] + v_groups._S[_t] - _dS #+ v_policy(t, v_groups)
-                
-                    # if t >= 711:
-                    #     breakpoint()
           
                     # Dynamics for PY
                     EPY = rv_gen(rnd_stream, E_out, epi.tau * ( 1 - v_groups.v_tau_reduct))
@@ -444,16 +414,13 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                     # Dynamics for IA
                     IAR = rv_gen(rnd_stream, v_groups._IA[_t], rate_IAR)
                     v_groups._IA[_t + 1] = v_groups._IA[_t] + PAIA - IAR
-                
-                
+
                     # Dynamics for IY
                     IYR = rv_gen(rnd_stream, v_groups._IY[_t], rate_IYR)
                     IYD = rv_gen(rnd_stream, v_groups._IY[_t] - IYR, rate_IYD)
                     v_groups._IYIH[_t] = rv_gen(rnd_stream, v_groups._IY[_t] - IYR - IYD, rate_IYH)
                     v_groups._IYICU[_t] = rv_gen(rnd_stream, v_groups._IY[_t] - IYR - IYD - v_groups._IYIH[_t], rate_IYICU)
                     v_groups._IY[_t + 1] = v_groups._IY[_t] + PYIY - IYR - IYD - v_groups._IYIH[_t] - v_groups._IYICU[_t]
-                    
-                    
                     
                     # Dynamics for IH
                     IHR = rv_gen(rnd_stream, v_groups._IH[_t], rate_IHR)
@@ -466,30 +433,21 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                     v_groups._ICU[_t + 1] = v_groups._ICU[_t] + v_groups._IHICU[_t] - ICUD - ICUR + v_groups._IYICU[_t]
                     v_groups._ToICU[_t] = v_groups._IYICU[_t] + v_groups._IHICU[_t]
                     v_groups._ToIHT[_t] = v_groups._IYICU[_t] + v_groups._IYIH[_t]
-                    
-                    
-                        
-                        
+
                     # Dynamics for R
                     #v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR
                     if t >= 711 and v_groups.v_name != 'v_3':
                         v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR - immune_escape_R
                     else:
                         v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR 
-                        
-                     
-                        
+
                     # Dynamics for D
                     v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD
                     v_groups._ToICUD[_t] = ICUD
                     v_groups._ToIYD[_t] = IYD
                     v_groups._ToIA[_t] = PAIA
                     v_groups._ToIY[_t] = PYIY
-                    
-                    
-                        
-            
-                    
+
             for idx, v_groups in enumerate(v_policy._vaccine_groups):
                 # End of the daily disctretization
                 v_groups.S[t + 1] = v_groups._S[step_size].copy() 
@@ -578,8 +536,7 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                 imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
            
                 assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {instance.cal.calendar[t]}, {t}'    
-                
-        
+
             for idx, v_groups in enumerate(v_policy._vaccine_groups):
                 v_groups._S = np.zeros((step_size + 1, A, L))
                 v_groups._E = np.zeros((step_size + 1, A, L))
@@ -611,7 +568,7 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                 v_groups._ICU[0] = v_groups.ICU[t + 1].copy()
                 v_groups._R[0] = v_groups.R[t + 1].copy() 
                 v_groups._D[0] = v_groups.D[t + 1].copy()
-        #breakpoint()   
+
         return v_policy
 
 def rv_gen(rnd_stream, n, p, round_opt=1):

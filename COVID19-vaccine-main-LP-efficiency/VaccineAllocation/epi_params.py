@@ -212,7 +212,6 @@ class EpiSetup:
                                   for a in range(len(self.YHR_overall))])
         self.omega_PA = self.omega_IA * self.omega_P
         self.omega_PY = self.omega_IY * self.omega_P
-              
         
         self.pi = np.array([
             self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
@@ -233,7 +232,6 @@ class EpiSetup:
         except:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH- self.mu) * self.HFR)
 
-
          # Update hospital dynamic parameters:
         self.gamma_ICU = self.gamma_ICU0 *(1 + self.alpha1_omic) * 1.1 * prev + (self.gamma_ICU0 * 0.65 *(1 + self.alpha1_delta)) * (1 - prev)
         self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3_omic) * prev + (self.mu_ICU0 * 0.65 * (1 + self.alpha3_delta)) * (1 - prev)
@@ -246,7 +244,6 @@ class EpiSetup:
             Assume an imaginary new variant that is more transmissible.
         '''       
         self.beta = self.beta * (1 - prev) + self.beta * (self.new_variant_beta) * prev #increased transmission
-     
        
     @property
     def eq_mu(self):
