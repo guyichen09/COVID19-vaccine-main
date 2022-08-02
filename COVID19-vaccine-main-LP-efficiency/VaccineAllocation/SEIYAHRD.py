@@ -85,10 +85,12 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
     N = instance.N
 
     # Compartments
-    if config['det_history']:
-        types = 'float'
-    else:
-        types = 'int' if seed >= 0 else 'float'
+    # if config['det_history']:
+    #     types = 'float'
+    # else:
+    #     types = 'int' if seed >= 0 else 'float'
+
+    types = "double"
 
     # Random stream for stochastic simulations
     if config["det_param"]:
@@ -273,10 +275,12 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
             kwargs["_capacity"] = [instance.hosp_beds] * instance.T
  
         # Compartments
-        if config['det_history']:
-            types = 'float'
-        else:
-            types = 'int' if seed >= 0 else 'float'
+        # if config['det_history']:
+        #     types = 'float'
+        # else:
+        #     types = 'int' if seed >= 0 else 'float'
+
+        types = "double"
         
         for t_idx in range(1):
             t = t_date
@@ -542,7 +546,7 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                             else:
                                 in_sum += ratio_S_N*v_temp._S[step_size]
 
-                    if types == 'float':
+                    if types == "double":
                         v_groups.S[t + 1] = v_groups.S[t + 1] + (np.array(in_sum - out_sum))
                     else:
                         out_sum = np.round(out_sum) 

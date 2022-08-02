@@ -16,6 +16,8 @@ import iteround
 datetime_formater = '%Y-%m-%d %H:%M:%S'
 date_formater = '%Y-%m-%d'
 
+import copy
+
 import time
 
 def LP_trigger_policy_search(instance,
@@ -64,29 +66,17 @@ def LP_trigger_policy_search(instance,
                                         policy_field=policy_field,
                                         policy_ub=policy_ub)
 
-    print(len(instance.real_hosp))
+    # selected_vaccine_policy_copy = copy.deepcopy(selected_vaccine_policy)
 
-    # start = time.time()
-    # output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
-    # print(time.time() - start)
-    #
-    # crn_seeds_to_simulate = [process_rank * 2 + i for i in range(1)]
-    # output = []
-    #
-    # start = time.time()
-    # for crn_seed in crn_seeds_to_simulate:
-    #     selected_vaccine_policy.reset_vaccine_history(instance, crn_seed)
-    #     output.append(simulate_vaccine(instance, selected_vaccine_policy, crn_seed, **kwargs))
-    # print(time.time() - start)
-    #
+    output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
 
-    for CRN_SEED in [14, 15]:
+    for CRN_SEED in [10]:
 
-        selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
+        selected_vaccine_policy = VAP.vaccine_policy(instance, vaccines)
 
-        start = time.time()
+        # selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
+
         output = simulate_vaccine(instance, selected_vaccine_policy, CRN_SEED, **kwargs)
-        print(time.time() - start)
 
         hosp_benchmark = instance.real_hosp
         real_hosp_end_ix = len(hosp_benchmark)
@@ -99,6 +89,40 @@ def LP_trigger_policy_search(instance,
             (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
         print('rsq', rsq)
         print(CRN_SEED)
+
+        if CRN_SEED == 21:
+            breakpoint()
+
+    #
+    # crn_seeds_to_simulate = [process_rank * 2 + i for i in range(1)]
+    # output = []
+    #
+    # start = time.time()
+    # for crn_seed in crn_seeds_to_simulate:
+    #     selected_vaccine_policy.reset_vaccine_history(instance, crn_seed)
+    #     output.append(simulate_vaccine(instance, selected_vaccine_policy, crn_seed, **kwargs))
+    # print(time.time() - start)
+    #
+
+    # for CRN_SEED in [10, 13, 14, 15, 16, 17, 18, 19, 20, 21]:
+    #
+    #     selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
+    #
+    #     start = time.time()
+    #     output = simulate_vaccine(instance, selected_vaccine_policy, CRN_SEED, **kwargs)
+    #     print(time.time() - start)
+    #
+    #     hosp_benchmark = instance.real_hosp
+    #     real_hosp_end_ix = len(hosp_benchmark)
+    #
+    #     IH_sim = output['IHT'][0:real_hosp_end_ix]
+    #     IH_sim = IH_sim.sum(axis=(2, 1))
+    #     f_benchmark = hosp_benchmark
+    #
+    #     rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
+    #         (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+    #     print('rsq', rsq)
+    #     print(CRN_SEED)
 
         # breakpoint()
 

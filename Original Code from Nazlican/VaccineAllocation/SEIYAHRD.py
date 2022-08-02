@@ -582,6 +582,9 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                 #     print(N_in)
                 #     print(N_out)
 
+                # if t > 400:
+                #    breakpoint()
+
                 imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
            
                 assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {instance.cal.calendar[t]}, {t}'    

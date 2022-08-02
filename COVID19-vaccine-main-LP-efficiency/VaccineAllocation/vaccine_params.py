@@ -272,7 +272,7 @@ class Vaccine_group:
         step_size = config['step_size']
 
         # types = 'int' if problem_type == 'stochastic' else 'float'
-        types = "float"
+        types = "double"
         #breakpoint()
             
         self.S = np.zeros((T, A, L), dtype=types)
@@ -341,7 +341,8 @@ class Vaccine_group:
         T, A, L = instance.T, instance.A, instance.L
         step_size = config['step_size']
        
-        types = 'int' if seed >= 0 else 'float'
+        # types = 'int' if seed >= 0 else 'float'
+        types = "double"
         #breakpoint()
         
         self.S = np.zeros((T, A, L), dtype=types)

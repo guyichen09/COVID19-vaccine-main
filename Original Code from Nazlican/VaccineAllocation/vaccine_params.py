@@ -247,7 +247,7 @@ class Vaccine_group:
         step_size = config['step_size']
        
         types = 'int' if seed >= 0 else 'float'
-        #breakpoint()
+        # breakpoint()
         
         self.S = np.zeros((T, A, L), dtype=types)
         self.E = np.zeros((T, A, L), dtype=types)

@@ -57,7 +57,7 @@ def trigger_policy_search(instance,
     print(t_start)
 
     # LP
-    crn_seeds = [14]
+    crn_seeds = [12]
     
     selected_vaccine_policy = vaccine_policy
     # Build an iterator of all the candidate trigger policies (with given fixed vaccine policy) to be simulated by simulate_p
@@ -236,8 +236,6 @@ def trigger_policy_search(instance,
                                 crn_seeds_i.append(seed_j)
                                 if len(stoch_outputs_i) == n_replicas_train:
                                     break
-
-                            breakpoint()
 
                     else:
                         for sample_ij in out_sample_outputs:
