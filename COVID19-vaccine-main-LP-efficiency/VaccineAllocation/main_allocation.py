@@ -92,7 +92,7 @@ if __name__ == '__main__':
         elif given_vaccine_policy_no == 6:
             selected_vaccine_policy = VAP.phase_1b_policy(instance, vaccines, args.percentage)
         elif given_vaccine_policy_no == 7:
-            selected_vaccine_policy = VAP.vaccine_policy(instance, vaccines, 'deterministic')
+            selected_vaccine_policy = VAP.vaccine_policy(instance, vaccines)
             
     task_str = str(selected_policy) if selected_policy is not None else f'opt{len(tiers.tier)}'
     instance_name = f'{args.f_config[:-5]}_{args.t[:-5]}_{task_str}_{args.tr}_{args.f}'

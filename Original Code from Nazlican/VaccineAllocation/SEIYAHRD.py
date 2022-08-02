@@ -488,6 +488,10 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                 immune_escape(epi.immune_escape_rate, t, types, v_policy, step_size)
          
             if t >= v_policy._vaccines.vaccine_start_time:
+
+                # print("FIRST T")
+                # print(t)
+
                 S_before = np.zeros((5, 2))
       
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
@@ -501,6 +505,10 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                     for out_daily in v_groups.v_out:
                         if v_policy._instance.cal.calendar[t] == out_daily['time']:
                             S_out = np.array([age_risk_allocation[t] for age_risk_allocation in out_daily['daily_assignment']]).reshape((10,1))
+
+                            # if t == 331:
+                            #     breakpoint()
+
                             if t >= T_omicron:
                                 if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
                                     S_out = np.array([age_risk_allocation[t] for age_risk_allocation in epi.immune_escape_rate * out_daily['daily_assignment']]).reshape((10,1))
@@ -511,14 +519,22 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                                 out_sum += np.round(ratio_S_N*v_groups._S[step_size])   
                             else:
                                 out_sum += ratio_S_N*v_groups._S[step_size]
+
+                    # print(out_sum)
                     
                     in_sum = np.zeros((A, L))
                     S_in = np.zeros((10, 1))
                     N_in = np.zeros((10, 1))
+
                     for in_daily in v_groups.v_in:
                         for v_g in v_policy._vaccine_groups:
                             if v_g.v_name == in_daily['from']:
-                                v_temp = v_g        
+                                v_temp = v_g
+
+                        # print(vaccine_type)
+                        # print(v_temp.v_name)
+                        # print("~~~~~~")
+
                         if v_policy._instance.cal.calendar[t] == in_daily['time']:
                             S_in = np.array([age_risk_allocation[t] for age_risk_allocation in in_daily['daily_assignment']]).reshape((10,1))                        
                             if t >= T_omicron:
@@ -541,15 +557,37 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                         in_sum = np.round(in_sum)
                         v_groups.S[t + 1] = v_groups.S[t + 1] + np.round(np.array(in_sum - out_sum))
 
+                    # print(in_sum)
+
                     S_after = np.zeros((5, 2))
+
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_after += v_groups.S[t + 1]
  
+                # for idx, v_groups in enumerate(v_policy._vaccine_groups):
+                #    print(v_groups.v_name)
+                #    print(v_groups.S[t + 1] - v_groups.S[t])
+                    # print(v_groups.S[t] - v_groups.S[t - 1])
+
+                # print(t)
+                # print(S_before)
+                # print(S_after)
+
+                # if t == 340:
+                #    breakpoint()
+
+                # if t == 331 or t == 332:
+                #     print(S_in)
+                #     print(S_out)
+                #     print(N_in)
+                #     print(N_out)
+
                 imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
            
                 assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {instance.cal.calendar[t]}, {t}'    
-                
-        
+
+
+
             for idx, v_groups in enumerate(v_policy._vaccine_groups):
                 v_groups._S = np.zeros((step_size + 1, A, L), dtype=types)
                 v_groups._E = np.zeros((step_size + 1, A, L), dtype=types)

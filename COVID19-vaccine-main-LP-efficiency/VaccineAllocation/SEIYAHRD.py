@@ -85,11 +85,10 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
     N = instance.N
 
     # Compartments
-    types = "int"
-    # if config['det_history']:
-    #     types = 'float'
-    # else:
-    #     types = 'int' if seed >= 0 else 'float'
+    if config['det_history']:
+        types = 'float'
+    else:
+        types = 'int' if seed >= 0 else 'float'
 
     # Random stream for stochastic simulations
     if config["det_param"]:
@@ -108,26 +107,26 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
     epi_orig.update_hosp_duration()
     
     # T0 = v_policy._vaccines.vaccine_start_time[0]
-    IH = np.zeros((T, A, L))
-    ICU = np.zeros((T, A, L))
-    ToIHT = np.zeros((T, A, L))
-    ToIY = np.zeros((T, A, L))
+    IH = np.zeros((T, A, L), dtype=types)
+    ICU = np.zeros((T, A, L), dtype=types)
+    ToIHT = np.zeros((T, A, L), dtype=types)
+    ToIY = np.zeros((T, A, L), dtype=types)
        
     for t in range(T - 1):
         kwargs["acs_criStat"] = eval(kwargs["acs_policy_field"])[:t]
         kwargs["t_start"] = len(instance.real_hosp)
 
         v_policy = simulate_t(instance, v_policy, t, epi_rand, epi_orig, rnd_epi, seed, **kwargs)
-        S = np.zeros((T, A, L))
-        E = np.zeros((T, A, L))
-        IA = np.zeros((T, A, L))
-        IY = np.zeros((T, A, L))
-        PA = np.zeros((T, A, L))
-        PY = np.zeros((T, A, L))
-        IH = np.zeros((T, A, L))
-        ICU = np.zeros((T, A, L))
-        R = np.zeros((T, A, L))
-        D = np.zeros((T, A, L))
+        S = np.zeros((T, A, L), dtype=types)
+        E = np.zeros((T, A, L), dtype=types)
+        IA = np.zeros((T, A, L), dtype=types)
+        IY = np.zeros((T, A, L), dtype=types)
+        PA = np.zeros((T, A, L), dtype=types)
+        PY = np.zeros((T, A, L), dtype=types)
+        IH = np.zeros((T, A, L), dtype=types)
+        ICU = np.zeros((T, A, L), dtype=types)
+        R = np.zeros((T, A, L), dtype=types)
+        D = np.zeros((T, A, L), dtype=types)
     
         # Additional tracking variables (for triggers)
         IYIH = np.zeros((T - 1, A, L))
@@ -274,12 +273,10 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
             kwargs["_capacity"] = [instance.hosp_beds] * instance.T
  
         # Compartments
-        # if config['det_history']:
-        #     types = 'float'
-        # else:
-        #     types = 'int' if seed >= 0 else 'float'
-
-        types = "int"
+        if config['det_history']:
+            types = 'float'
+        else:
+            types = 'int' if seed >= 0 else 'float'
         
         for t_idx in range(1):
             t = t_date
@@ -476,47 +473,70 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                 immune_escape(epi.immune_escape_rate, t, types, v_policy, step_size)
          
             if t >= v_policy._vaccines.vaccine_start_time:
+
+                # print("FIRST T")
+                # print(t)
+
                 S_before = np.zeros((5, 2))
       
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_before += v_groups.S[t + 1]
-                
+
+                # LP -- THIS IS WHERE V_IN AND V_OUT STUFF HAPPENS
+
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     
                     out_sum = np.zeros((A, L))
-                    S_out = np.zeros((10, 1))
-                    N_out = np.zeros((10, 1))
-                    for out_daily in v_groups.v_out:
-                        if v_policy._instance.cal.calendar[t] == out_daily['time']:
-                            S_out = np.array([age_risk_allocation[t] for age_risk_allocation in out_daily['daily_assignment']]).reshape((10,1))
+                    S_out = np.zeros((A*L, 1))
+                    N_out = np.zeros((A*L, 1))
+
+                    for vaccine_type in v_groups.v_out:
+                        event = v_policy._vaccines.event_lookup(vaccine_type, v_policy._instance.cal.calendar[t])
+
+                        if event is not None:
+
+                            # if t == 331:
+                            #     breakpoint()
+
+                            S_out = np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
                             if t >= T_omicron:
                                 if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
-                                    S_out = np.array([age_risk_allocation[t] for age_risk_allocation in epi.immune_escape_rate * out_daily['daily_assignment']]).reshape((10,1))
-              
-                            N_out = np.array([age_risk_allocation[t] for age_risk_allocation in v_groups.N_eligible]).reshape((10,1))
-                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L)) #(S_out/N_out).reshape((5,2))                            
+                                    S_out = epi.immune_escape_rate * np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
+
+                            N_out = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_groups.v_name, v_groups.v_in, v_groups.v_out, v_policy._instance.cal.calendar[t])
+                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
+
                             if types == 'int':
                                 out_sum += np.round(ratio_S_N*v_groups._S[step_size])   
                             else:
                                 out_sum += ratio_S_N*v_groups._S[step_size]
                     
                     in_sum = np.zeros((A, L))
-                    S_in = np.zeros((10, 1))
-                    N_in = np.zeros((10, 1))
-                    for in_daily in v_groups.v_in:
+                    S_in = np.zeros((A*L, 1))
+                    N_in = np.zeros((A*L, 1))
+
+                    for vaccine_type in v_groups.v_in:
+
                         for v_g in v_policy._vaccine_groups:
-                            if v_g.v_name == in_daily['from']:
-                                v_temp = v_g        
-                        if v_policy._instance.cal.calendar[t] == in_daily['time']:
-                            S_in = np.array([age_risk_allocation[t] for age_risk_allocation in in_daily['daily_assignment']]).reshape((10,1))                        
+                            if v_g.v_name == v_policy._allocation[vaccine_type][0]["from"]:
+                                v_temp = v_g
+
+                        # print(vaccine_type)
+                        # print(v_temp.v_name)
+                        # print("~~~~~~")
+
+                        event = v_policy._vaccines.event_lookup(vaccine_type, v_policy._instance.cal.calendar[t])
+
+                        if event is not None:
+                            S_in = np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
+
                             if t >= T_omicron:
-                                if v_groups.v_name == "v_3" and v_temp.v_name == "v_2":
-                                    S_in = np.array([age_risk_allocation[t] for age_risk_allocation in epi.immune_escape_rate * in_daily['daily_assignment']]).reshape((10,1))
-                                elif v_groups.v_name == "v_2" and v_temp.v_name == "v_1":
-                                    S_in = np.array([age_risk_allocation[t] for age_risk_allocation in epi.immune_escape_rate * in_daily['daily_assignment']]).reshape((10,1))
-      
-                            N_in = np.array([age_risk_allocation[t] for age_risk_allocation in v_temp.N_eligible]).reshape((10,1))
-                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L)) #(S_in/N_in).reshape((5,2))
+                                if (v_groups.v_name == "v_3" and v_temp.v_name == "v_2") or (v_groups.v_name == "v_2" and v_temp.v_name == "v_1"):
+                                    S_in = epi.immune_escape_rate * np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
+
+                            N_in = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_temp.v_name, v_temp.v_in, v_temp.v_out, v_policy._instance.cal.calendar[t])
+                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
+
                             if types == 'int':
                                 in_sum += np.round(ratio_S_N*v_temp._S[step_size])
                             else:
@@ -530,24 +550,50 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                         v_groups.S[t + 1] = v_groups.S[t + 1] + np.round(np.array(in_sum - out_sum))
 
                     S_after = np.zeros((5, 2))
+
+                    # print(in_sum)
+
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_after += v_groups.S[t + 1]
- 
+
+                #if t == 331:
+                #    for i in range(len(v_policy._allocation["v_booster"])):
+                #        print(v_policy._allocation["v_second"][i]["from"])
+
+                #if t == 331 or t == 332:
+                #    print(S_in)
+                #    print(S_out)
+                #    print(N_in)
+                #   print(N_out)
+
+                # print(t)
+                # print(S_before)
+                # print(S_after)
+
+                # if t == 340:
+                #     breakpoint()
+
+                # for idx, v_groups in enumerate(v_policy._vaccine_groups):
+                #     print(v_groups.v_name)
+                #    print(v_groups.S[t + 1] - v_groups.S[t])
+                    # print(v_groups.S[t] - v_groups.S[t - 1])
+
                 imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
-           
+                # print(imbalance)
+
                 assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {instance.cal.calendar[t]}, {t}'    
 
             for idx, v_groups in enumerate(v_policy._vaccine_groups):
-                v_groups._S = np.zeros((step_size + 1, A, L))
-                v_groups._E = np.zeros((step_size + 1, A, L))
-                v_groups._IA = np.zeros((step_size + 1, A, L))
-                v_groups._IY = np.zeros((step_size + 1, A, L))
-                v_groups._PA = np.zeros((step_size + 1, A, L))
-                v_groups._PY = np.zeros((step_size + 1, A, L))
-                v_groups._IH = np.zeros((step_size + 1, A, L))
-                v_groups._ICU = np.zeros((step_size + 1, A, L))
-                v_groups._R = np.zeros((step_size + 1, A, L))
-                v_groups._D = np.zeros((step_size + 1, A, L))
+                v_groups._S = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._E = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._IA = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._IY = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._PA = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._PY = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._IH = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._ICU = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._R = np.zeros((step_size + 1, A, L), dtype=types)
+                v_groups._D = np.zeros((step_size + 1, A, L), dtype=types)
                 v_groups._IYIH = np.zeros((step_size, A, L))
                 v_groups._IYICU = np.zeros((step_size, A, L))
                 v_groups._IHICU = np.zeros((step_size, A, L))

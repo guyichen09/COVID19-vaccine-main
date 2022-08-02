@@ -12,7 +12,6 @@ from utils import profile_log, print_profiling_log
 from threshold_policy import run_multi_calendar, policy_multi_iterator, stoch_simulation_iterator
 from objective_functions import multi_tier_objective
 from vaccine_policies import VaccineAllocationPolicy as VAP
-from vaccine_policies import  fix_hist_allocation
 import iteround
 datetime_formater = '%Y-%m-%d %H:%M:%S'
 date_formater = '%Y-%m-%d'
@@ -65,55 +64,64 @@ def LP_trigger_policy_search(instance,
                                         policy_field=policy_field,
                                         policy_ub=policy_ub)
 
-    start = time.time()
-    output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
-    print(time.time() - start)
+    print(len(instance.real_hosp))
 
-    crn_seeds_to_simulate = [process_rank * 2 + i for i in range(1)]
-    output = []
+    # start = time.time()
+    # output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
+    # print(time.time() - start)
+    #
+    # crn_seeds_to_simulate = [process_rank * 2 + i for i in range(1)]
+    # output = []
+    #
+    # start = time.time()
+    # for crn_seed in crn_seeds_to_simulate:
+    #     selected_vaccine_policy.reset_vaccine_history(instance, crn_seed)
+    #     output.append(simulate_vaccine(instance, selected_vaccine_policy, crn_seed, **kwargs))
+    # print(time.time() - start)
+    #
 
-    start = time.time()
-    for crn_seed in crn_seeds_to_simulate:
-        selected_vaccine_policy.reset_vaccine_history(instance, crn_seed)
-        output.append(simulate_vaccine(instance, selected_vaccine_policy, crn_seed, **kwargs))
-    print(time.time() - start)
+    for CRN_SEED in [14, 15]:
 
-    selected_vaccine_policy.reset_vaccine_history(instance, 2)
+        selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
 
-    start = time.time()
-    output = simulate_vaccine(instance, selected_vaccine_policy, 2, **kwargs)
-    print(time.time() - start)
+        start = time.time()
+        output = simulate_vaccine(instance, selected_vaccine_policy, CRN_SEED, **kwargs)
+        print(time.time() - start)
 
-    hosp_benchmark = instance.real_hosp
-    real_hosp_end_ix = len(hosp_benchmark)
+        hosp_benchmark = instance.real_hosp
+        real_hosp_end_ix = len(hosp_benchmark)
 
-    IH_sim = output['IHT'][0:real_hosp_end_ix]
-    IH_sim = IH_sim.sum(axis=(2, 1))
-    f_benchmark = hosp_benchmark
+        IH_sim = output['IHT'][0:real_hosp_end_ix]
+        IH_sim = IH_sim.sum(axis=(2, 1))
+        f_benchmark = hosp_benchmark
 
-    rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
-        (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
-    print('rsq', rsq)
+        rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
+            (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+        print('rsq', rsq)
+        print(CRN_SEED)
 
-    selected_vaccine_policy.reset_vaccine_history(instance, 4)
+        # breakpoint()
 
-    start = time.time()
-    output = simulate_vaccine(instance, selected_vaccine_policy, 4, **kwargs)
-    print(time.time() - start)
-
-    hosp_benchmark = instance.real_hosp
-    real_hosp_end_ix = len(hosp_benchmark)
-
-    IH_sim = output['IHT'][0:real_hosp_end_ix]
-    IH_sim = IH_sim.sum(axis=(2, 1))
-    f_benchmark = hosp_benchmark
-
-    # print(IH_sim)
-    # print(f_benchmark)
-
-    rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
-        (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
-    print('rsq', rsq)
+    #
+    # selected_vaccine_policy.reset_vaccine_history(instance, 4)
+    #
+    # start = time.time()
+    # output = simulate_vaccine(instance, selected_vaccine_policy, 4, **kwargs)
+    # print(time.time() - start)
+    #
+    # hosp_benchmark = instance.real_hosp
+    # real_hosp_end_ix = len(hosp_benchmark)
+    #
+    # IH_sim = output['IHT'][0:real_hosp_end_ix]
+    # IH_sim = IH_sim.sum(axis=(2, 1))
+    # f_benchmark = hosp_benchmark
+    #
+    # # print(IH_sim)
+    # # print(f_benchmark)
+    #
+    # rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
+    #     (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+    # print('rsq', rsq)
 
     # Launch parallel simulation
     # all_outputs = simulate_p(mp_pool, output)

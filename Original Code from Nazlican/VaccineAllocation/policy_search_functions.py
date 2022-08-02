@@ -55,6 +55,9 @@ def trigger_policy_search(instance,
 
     t_start = len(instance.real_hosp)
     print(t_start)
+
+    # LP
+    crn_seeds = [14]
     
     selected_vaccine_policy = vaccine_policy
     # Build an iterator of all the candidate trigger policies (with given fixed vaccine policy) to be simulated by simulate_p
@@ -193,7 +196,8 @@ def trigger_policy_search(instance,
                     # Eliminate invalid samples according to R-squared. Invalid samples are those that
                     # deviate from recent hospitalization data
 
-                    if crn_seeds == []:
+                    if True:
+                    # if crn_seeds == []:
                         for sample_ij in out_sample_outputs:
                             sim_j, cost_j, policy_j, _vac_policy, seed_j, kwargs_j = sample_ij
 
@@ -225,12 +229,16 @@ def trigger_policy_search(instance,
 
                             rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark))**2))/sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark)))**2)
                             print('rsq', rsq)
+                            print(seed_j)
 
                             if rsq > -np.inf: # 0.75:
                                 stoch_outputs_i.append(sample_ij)
                                 crn_seeds_i.append(seed_j)
                                 if len(stoch_outputs_i) == n_replicas_train:
                                     break
+
+                            breakpoint()
+
                     else:
                         for sample_ij in out_sample_outputs:
                             stoch_outputs_i.append(sample_ij)

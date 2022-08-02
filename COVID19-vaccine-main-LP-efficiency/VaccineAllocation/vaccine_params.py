@@ -24,10 +24,90 @@ class Vaccine:
         self.tau_reduct_delta = vaccine_data['tau_reduct_delta'] 
         self.tau_reduct_omicron = vaccine_data['tau_reduct_omicron'] 
         self.instance = instance
-        self.vaccine_supply = self.define_supply(instance, vaccine_allocation_data, booster_allocation_data)
-          
-        
-    def define_groups(self, problem_type):  
+
+        self.vaccine_allocation = self.define_supply(instance, vaccine_allocation_data, booster_allocation_data)
+        self.event_lookup_dict = self.build_event_lookup_dict()
+
+    def build_event_lookup_dict(self):
+        '''
+        Must be called after self.vaccine_allocation is updated using self.define_supply
+
+        This method creates a mapping between date and "vaccine events" in historical data
+            corresponding to that date -- so that we can look up whether or not a vaccine group event occurs,
+            rather than iterating through all items in self.vaccine_allocation
+
+        Creates event_lookup_dict, a dictionary of dictionaries, with the same keys as self.vaccine_allocation,
+            where each key corresponds to a vaccine group ("v_first", "v_second", "v_booster", "v_wane")
+        self.event_lookup_dict[vaccine_type] is a dictionary
+            the same length as self.vaccine_allocation[vaccine_ID]
+        Each key in event_lookup_dict[vaccine_type] is a datetime object and the corresponding value is the
+            i (index) of self.vaccine_allocation[vaccine_type] such that
+            self.vaccine_allocation[vaccine_type][i]["supply"]["time"] matches the datetime object
+        '''
+
+        event_lookup_dict = {}
+        for key in self.vaccine_allocation.keys():
+            d = {}
+            counter = 0
+            for allocation_item in self.vaccine_allocation[key]:
+                d[allocation_item["supply"]["time"]] = counter
+                counter += 1
+            event_lookup_dict[key] = d
+        return event_lookup_dict
+
+    def event_lookup(self, vaccine_type, date):
+        '''
+        Must be called after self.build_event_lookup_dict builds the event lookup dictionary
+
+        vaccine_type is one of the keys of self.vaccine_allocation ("v_first", "v_second", "v_booster", "v_wane")
+        date is a datetime object
+
+        Returns the index i such that self.vaccine_allocation[vaccine_type][i]["supply"]["time"] == date
+        Otherwise, returns None
+        '''
+
+        if date in self.event_lookup_dict[vaccine_type].keys():
+            return self.event_lookup_dict[vaccine_type][date]
+
+    def get_num_eligible(self, total_population, total_risk_gr, vaccine_group_name, v_in, v_out, date):
+
+        '''
+
+        :param total_population: integer, usually N parameter such as instance.N
+        :param total_risk_gr: instance.A x instance.L
+        :param vaccine_group_name: string of vaccine_group_name (see Vaccine.define_groups()) ("v_0", "v_1", "v_2", "v_3")
+        :param v_in: tuple with strings of vaccine_types going "in" to that vaccine group
+        :param v_out: tuple with strings of vaccine_types going "out" of that vaccine group
+        :param date: datetime object
+        :return: list of number eligible at that date, where each element corresponds to age/risk group
+            (list is length A * L)
+        '''
+
+        # I don't know what dimension instance.N is, so need to check...
+
+        N_in = np.zeros((total_risk_gr, 1))
+        N_out = np.zeros((total_risk_gr, 1))
+
+        for vaccine_type in v_in:
+            event = self.event_lookup(vaccine_type, date)
+            if event:
+                for i in range(event):
+                    N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+
+        for vaccine_type in v_out:
+            event = self.event_lookup(vaccine_type, date)
+            if event:
+                for i in range(event):
+                    N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+
+        if vaccine_group_name == 'v_0':
+            N_eligible = total_population.reshape((total_risk_gr, 1)) - N_out
+        else:
+            N_eligible = N_in - N_out
+
+        return N_eligible
+
+    def define_groups(self):
         '''
              Define different vaccine groups. 
              {
@@ -42,17 +122,16 @@ class Vaccine:
                  - after first dose move to group 1 compartment.
                  - after second dose move to group 2 compartment.
                  - after efficacy wanes, move to group 3 compartment.
-                 - If boster shot is administred move from group 3 compartment to group 2 compartment.
+                 - If booster shot is administred move from group 3 compartment to group 2 compartment.
                            
         '''  
         # Including vaccine groups
         self._vaccine_groups = []
-        self._vaccine_groups.append(Vaccine_group('v_0', 0, 0, 0, 0, 0, self.instance, problem_type)) #unvax
-        self._vaccine_groups.append(Vaccine_group('v_1', self.beta_reduct[1], self.tau_reduct[1], self.beta_reduct_delta[1], self.tau_reduct_delta[1], self.tau_reduct_omicron[1], self.instance, problem_type)) # partially vaccinated
-        self._vaccine_groups.append(Vaccine_group('v_2', self.beta_reduct[2], self.tau_reduct[2], self.beta_reduct_delta[2], self.tau_reduct_delta[2], self.tau_reduct_omicron[2], self.instance, problem_type)) # fully vaccinated
-        self._vaccine_groups.append(Vaccine_group('v_3', self.beta_reduct[0], self.tau_reduct[0], self.beta_reduct_delta[0], self.tau_reduct_delta[0], self.tau_reduct_omicron[0], self.instance, problem_type)) # waning efficacy
+        self._vaccine_groups.append(Vaccine_group('v_0', 0, 0, 0, 0, 0, self.instance)) #unvax
+        self._vaccine_groups.append(Vaccine_group('v_1', self.beta_reduct[1], self.tau_reduct[1], self.beta_reduct_delta[1], self.tau_reduct_delta[1], self.tau_reduct_omicron[1], self.instance)) # partially vaccinated
+        self._vaccine_groups.append(Vaccine_group('v_2', self.beta_reduct[2], self.tau_reduct[2], self.beta_reduct_delta[2], self.tau_reduct_delta[2], self.tau_reduct_omicron[2], self.instance)) # fully vaccinated
+        self._vaccine_groups.append(Vaccine_group('v_3', self.beta_reduct[0], self.tau_reduct[0], self.beta_reduct_delta[0], self.tau_reduct_delta[0], self.tau_reduct_omicron[0], self.instance)) # waning efficacy
         return self._vaccine_groups      
-    
 
     def define_supply(self, instance, vaccine_allocation_data, booster_allocation_data):
         '''
@@ -145,11 +224,10 @@ class Vaccine:
  
             
         
-        self.vaccine_allocation = {'v_first': v_first_allocation, 'v_second': v_second_allocation, 'v_booster': v_booster_allocation, 'v_wane': v_wane_allocation}
-        #breakpoint()      
+        return {'v_first': v_first_allocation, 'v_second': v_second_allocation, 'v_booster': v_booster_allocation, 'v_wane': v_wane_allocation}
     
 class Vaccine_group:
-    def __init__(self, v_name, v_beta_reduct, v_tau_reduct, v_beta_reduct_delta, v_tau_reduct_delta, v_tau_reduct_omicron, instance, problem_type):
+    def __init__(self, v_name, v_beta_reduct, v_tau_reduct, v_beta_reduct_delta, v_tau_reduct_delta, v_tau_reduct_omicron, instance):
         '''
         Define each vaccine status as a group. Define each set of compartments for vaccine group.
         
@@ -171,26 +249,42 @@ class Vaccine_group:
         self.v_tau_reduct_delta = v_tau_reduct_delta
         self.v_tau_reduct_omicron = v_tau_reduct_omicron
         self.v_name = v_name
+
+        # LP -- formerly vaccine_flow
+
+        if self.v_name == 'v_0':
+            self.v_in = ()
+            self.v_out = ('v_first',)
+
+        elif self.v_name == 'v_1':
+            self.v_in = ('v_first',)
+            self.v_out = ('v_second',)
+
+        elif self.v_name == 'v_2':
+            self.v_in = ('v_second', 'v_booster')
+            self.v_out = ('v_wane',)
+
+        else:
+            self.v_in = ('v_wane',)
+            self.v_out = ('v_booster',)
     
         T, A, L = instance.T, instance.A, instance.L
         step_size = config['step_size']
-   
-
-        types = "int"
 
         # types = 'int' if problem_type == 'stochastic' else 'float'
+        types = "float"
         #breakpoint()
             
-        self.S = np.zeros((T, A, L))
-        self.E = np.zeros((T, A, L))
-        self.IA = np.zeros((T, A, L))
-        self.IY = np.zeros((T, A, L))
-        self.PA = np.zeros((T, A, L))
-        self.PY = np.zeros((T, A, L))
-        self.IH = np.zeros((T, A, L))
-        self.ICU = np.zeros((T, A, L))
-        self.R = np.zeros((T, A, L))
-        self.D = np.zeros((T, A, L))
+        self.S = np.zeros((T, A, L), dtype=types)
+        self.E = np.zeros((T, A, L), dtype=types)
+        self.IA = np.zeros((T, A, L), dtype=types)
+        self.IY = np.zeros((T, A, L), dtype=types)
+        self.PA = np.zeros((T, A, L), dtype=types)
+        self.PY = np.zeros((T, A, L), dtype=types)
+        self.IH = np.zeros((T, A, L), dtype=types)
+        self.ICU = np.zeros((T, A, L), dtype=types)
+        self.R = np.zeros((T, A, L), dtype=types)
+        self.D = np.zeros((T, A, L), dtype=types)
         self.IYIH = np.zeros((T - 1, A, L))
         self.IYICU = np.zeros((T - 1, A, L))
         self.IHICU = np.zeros((T - 1, A, L))
@@ -201,16 +295,16 @@ class Vaccine_group:
         self.ToIA = np.zeros((T - 1, A, L))
         self.ToIY = np.zeros((T - 1, A, L))
         
-        self._S = np.zeros((step_size + 1, A, L))
-        self._E = np.zeros((step_size + 1, A, L))
-        self._IA = np.zeros((step_size + 1, A, L))
-        self._IY = np.zeros((step_size + 1, A, L))
-        self._PA = np.zeros((step_size + 1, A, L))
-        self._PY = np.zeros((step_size + 1, A, L))
-        self._IH = np.zeros((step_size + 1, A, L))
-        self._ICU = np.zeros((step_size + 1, A, L))
-        self._R = np.zeros((step_size + 1, A, L))
-        self._D = np.zeros((step_size + 1, A, L))
+        self._S = np.zeros((step_size + 1, A, L), dtype=types)
+        self._E = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IA = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IY = np.zeros((step_size + 1, A, L), dtype=types)
+        self._PA = np.zeros((step_size + 1, A, L), dtype=types)
+        self._PY = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IH = np.zeros((step_size + 1, A, L), dtype=types)
+        self._ICU = np.zeros((step_size + 1, A, L), dtype=types)
+        self._R = np.zeros((step_size + 1, A, L), dtype=types)
+        self._D = np.zeros((step_size + 1, A, L), dtype=types)
         self._IYIH = np.zeros((step_size, A, L))
         self._IYICU = np.zeros((step_size, A, L))
         self._IHICU = np.zeros((step_size, A, L))
@@ -240,7 +334,6 @@ class Vaccine_group:
         self._R[0] = self.R[0].copy()
         self._D[0] = self.D[0].copy()
     
-    
     def reset_history(self, instance, seed):
         '''
             reset history for a new simulation.
@@ -251,16 +344,16 @@ class Vaccine_group:
         types = 'int' if seed >= 0 else 'float'
         #breakpoint()
         
-        self.S = np.zeros((T, A, L))
-        self.E = np.zeros((T, A, L))
-        self.IA = np.zeros((T, A, L))
-        self.IY = np.zeros((T, A, L))
-        self.PA = np.zeros((T, A, L))
-        self.PY = np.zeros((T, A, L))
-        self.IH = np.zeros((T, A, L))
-        self.ICU = np.zeros((T, A, L))
-        self.R = np.zeros((T, A, L))
-        self.D = np.zeros((T, A, L))
+        self.S = np.zeros((T, A, L), dtype=types)
+        self.E = np.zeros((T, A, L), dtype=types)
+        self.IA = np.zeros((T, A, L), dtype=types)
+        self.IY = np.zeros((T, A, L), dtype=types)
+        self.PA = np.zeros((T, A, L), dtype=types)
+        self.PY = np.zeros((T, A, L), dtype=types)
+        self.IH = np.zeros((T, A, L), dtype=types)
+        self.ICU = np.zeros((T, A, L), dtype=types)
+        self.R = np.zeros((T, A, L), dtype=types)
+        self.D = np.zeros((T, A, L), dtype=types)
         self.IYIH = np.zeros((T - 1, A, L))
         self.IYICU = np.zeros((T - 1, A, L))
         self.IHICU = np.zeros((T - 1, A, L))
@@ -271,16 +364,16 @@ class Vaccine_group:
         self.ToIA = np.zeros((T - 1, A, L))   
         self.ToIY = np.zeros((T - 1, A, L))
         
-        self._S = np.zeros((step_size + 1, A, L))
-        self._E = np.zeros((step_size + 1, A, L))
-        self._IA = np.zeros((step_size + 1, A, L))
-        self._IY = np.zeros((step_size + 1, A, L))
-        self._PA = np.zeros((step_size + 1, A, L))
-        self._PY = np.zeros((step_size + 1, A, L))
-        self._IH = np.zeros((step_size + 1, A, L))
-        self._ICU = np.zeros((step_size + 1, A, L))
-        self._R = np.zeros((step_size + 1, A, L))
-        self._D = np.zeros((step_size + 1, A, L))
+        self._S = np.zeros((step_size + 1, A, L), dtype=types)
+        self._E = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IA = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IY = np.zeros((step_size + 1, A, L), dtype=types)
+        self._PA = np.zeros((step_size + 1, A, L), dtype=types)
+        self._PY = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IH = np.zeros((step_size + 1, A, L), dtype=types)
+        self._ICU = np.zeros((step_size + 1, A, L), dtype=types)
+        self._R = np.zeros((step_size + 1, A, L), dtype=types)
+        self._D = np.zeros((step_size + 1, A, L), dtype=types)
         self._IYIH = np.zeros((step_size, A, L))
         self._IYICU = np.zeros((step_size, A, L))
         self._IHICU = np.zeros((step_size, A, L))
@@ -309,59 +402,6 @@ class Vaccine_group:
         self._R[0] = self.R[0].copy()
         self._D[0] = self.D[0].copy()
         
-    def vaccine_flow(self, instance, allocation):
-        '''
-            Define the flow of individuals between susceptible compartments of different vaccine groups.
-            Assume the flow is mechanistics (alternative could be to have exponential flow). 
-        '''
-        T, A, L = instance.T, instance.A, instance.L
-        total_risk_gr = A*L
-        N = instance.N
-        
-        self.v_out = []
-        self.v_in = []
-        N_out = np.zeros((total_risk_gr, T))
-        N_in = np.zeros((total_risk_gr, T))
-        N_eligible = []
-
-        if self.v_name == 'v_0':
-            allocation_in = []
-            allocation_out = allocation['v_first']
-            
-        elif self.v_name == 'v_1':
-            allocation_in = allocation['v_first']
-            allocation_out = allocation['v_second']
-         
-        elif self.v_name == 'v_2':
-            allocation_in = allocation['v_second']
-            allocation_in.extend(allocation['v_booster'])
-            allocation_out = allocation['v_wane']
-        else:
-            allocation_in = allocation['v_wane']
-            allocation_out = allocation['v_booster']
-        
-        
-        #breakpoint()
-        for allocation_item in allocation_in:
-            a = {'daily_assignment': allocation_item['assignment_daily'], 'from': allocation_item['from'], 'time': allocation_item['supply']['time']}
-            N_in += allocation_item['assignment_daily']
-            self.v_in.append(a)
-
-        for allocation_item in allocation_out:
-            a = {'daily_assignment': allocation_item['assignment_daily'], 'to': allocation_item['to'], 'time': allocation_item['supply']['time']}
-            N_out += allocation_item['assignment_daily']
-            self.v_out.append(a)
-        
-        if self.v_name == 'v_0':
-            for age_risk_gr in range(total_risk_gr):
-                    N_eligible.append([N.reshape(total_risk_gr)[age_risk_gr] - np.sum(N_out[age_risk_gr, 0:t]) for t in range(T)])
-        else:
-            for age_risk_gr in range(total_risk_gr):
-                N_eligible.append([np.sum(N_in[age_risk_gr, 0:t]) - np.sum(N_out[age_risk_gr, 0:t]) for t in range(T)])
-                
-        self.N_eligible = N_eligible
-      
-        
     def delta_update(self, prev):
         '''
             Update efficacy according to delta variant (VoC) prevelance.
@@ -369,11 +409,17 @@ class Vaccine_group:
         
         self.v_beta_reduct = self.v_beta_reduct * (1 - prev) + self.v_beta_reduct_delta * prev #decreased efficacy against infection.
         self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + self.v_tau_reduct_delta * prev #decreased efficacy against symptomatic infection.    
-     
+
+        # print("Delta Update")
+        # print(self.v_beta_reduct)
+        # print(self.v_tau_reduct)
+
+
     def omicron_update(self, prev):
         '''
             Update efficacy according to omicron variant (VoC) prevelance.
         '''
         self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + self.v_tau_reduct_omicron * prev
         #breakpoint() 
-        
+
+        # print("Omicron Update")
