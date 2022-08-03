@@ -68,13 +68,13 @@ def LP_trigger_policy_search(instance,
 
     # selected_vaccine_policy_copy = copy.deepcopy(selected_vaccine_policy)
 
-    output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
+    # selected_vaccine_policy.reset_vaccine_history(instance, -1)
 
-    for CRN_SEED in [10]:
+    # output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
 
-        selected_vaccine_policy = VAP.vaccine_policy(instance, vaccines)
+    for CRN_SEED in [21]:
 
-        # selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
+        selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
 
         output = simulate_vaccine(instance, selected_vaccine_policy, CRN_SEED, **kwargs)
 

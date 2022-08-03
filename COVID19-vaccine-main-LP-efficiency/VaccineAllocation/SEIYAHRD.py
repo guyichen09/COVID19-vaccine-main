@@ -85,12 +85,10 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
     N = instance.N
 
     # Compartments
-    # if config['det_history']:
-    #     types = 'float'
-    # else:
-    #     types = 'int' if seed >= 0 else 'float'
-
-    types = "double"
+    if config['det_history']:
+        types = 'float'
+    else:
+        types = 'int' if seed >= 0 else 'float'
 
     # Random stream for stochastic simulations
     if config["det_param"]:
@@ -275,12 +273,10 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
             kwargs["_capacity"] = [instance.hosp_beds] * instance.T
  
         # Compartments
-        # if config['det_history']:
-        #     types = 'float'
-        # else:
-        #     types = 'int' if seed >= 0 else 'float'
-
-        types = "double"
+        if config['det_history']:
+            types = 'float'
+        else:
+            types = 'int' if seed >= 0 else 'float'
         
         for t_idx in range(1):
             t = t_date
@@ -489,6 +485,9 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                 # LP -- THIS IS WHERE V_IN AND V_OUT STUFF HAPPENS
 
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
+
+                    # if t == 577:
+                    #     breakpoint()
                     
                     out_sum = np.zeros((A, L))
                     S_out = np.zeros((A*L, 1))
@@ -507,7 +506,13 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                                 if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
                                     S_out = epi.immune_escape_rate * np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
+                            # if v_groups.v_name == "v_3":
+                            #     print(v_groups.v_in)
+
                             N_out = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_groups.v_name, v_groups.v_in, v_groups.v_out, v_policy._instance.cal.calendar[t])
+
+                            # print(np.sum(N_out))
+
                             ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
 
                             if types == 'int':
@@ -546,7 +551,9 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                             else:
                                 in_sum += ratio_S_N*v_temp._S[step_size]
 
-                    if types == "double":
+                    # print(t, np.sum(in_sum), np.sum(out_sum))
+
+                    if types == "float":
                         v_groups.S[t + 1] = v_groups.S[t + 1] + (np.array(in_sum - out_sum))
                     else:
                         out_sum = np.round(out_sum) 
@@ -559,6 +566,14 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
 
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_after += v_groups.S[t + 1]
+
+                # print(np.sum(S_after))
+
+                if t == 317 + 273:
+                    breakpoint()
+
+                # if t == 579:
+                #    breakpoint()
 
                 #if t == 331:
                 #    for i in range(len(v_policy._allocation["v_booster"])):

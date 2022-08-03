@@ -162,7 +162,7 @@ def simulate_vaccine(instance, policy, interventions, v_policy, seed=-1, **kwarg
                 S2=v_policy._vaccine_groups[2].S
             if v_group.v_name == 'v_3':
                 S3=v_policy._vaccine_groups[3].S
-                
+
             S += v_group.S
             E += v_group.E
             IA += v_group.IA
@@ -512,9 +512,10 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                             if t >= T_omicron:
                                 if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
                                     S_out = np.array([age_risk_allocation[t] for age_risk_allocation in epi.immune_escape_rate * out_daily['daily_assignment']]).reshape((10,1))
-              
+
                             N_out = np.array([age_risk_allocation[t] for age_risk_allocation in v_groups.N_eligible]).reshape((10,1))
-                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L)) #(S_out/N_out).reshape((5,2))                            
+
+                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L)) #(S_out/N_out).reshape((5,2))
                             if types == 'int':
                                 out_sum += np.round(ratio_S_N*v_groups._S[step_size])   
                             else:
@@ -550,6 +551,8 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                             else:
                                 in_sum += ratio_S_N*v_temp._S[step_size]
 
+                    # print(t, np.sum(in_sum), np.sum(out_sum))
+
                     if types == 'float':
                         v_groups.S[t + 1] = v_groups.S[t + 1] + (np.array(in_sum - out_sum))
                     else:
@@ -563,6 +566,14 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
 
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_after += v_groups.S[t + 1]
+
+                if t == 273 + 317:
+                    breakpoint()
+
+                # print(np.sum(S_after))
+
+                # if t == 579:
+                #     breakpoint()
  
                 # for idx, v_groups in enumerate(v_policy._vaccine_groups):
                 #    print(v_groups.v_name)
