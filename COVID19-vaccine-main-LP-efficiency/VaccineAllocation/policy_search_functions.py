@@ -72,11 +72,13 @@ def LP_trigger_policy_search(instance,
 
     # output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
 
-    for CRN_SEED in [21]:
+    for CRN_SEED in [10, 13, 14, 15, 16, 17, 18, 19, 20, 21]:
 
         selected_vaccine_policy.reset_vaccine_history(instance, CRN_SEED)
 
+        start = time.time()
         output = simulate_vaccine(instance, selected_vaccine_policy, CRN_SEED, **kwargs)
+        print(time.time() - start)
 
         hosp_benchmark = instance.real_hosp
         real_hosp_end_ix = len(hosp_benchmark)

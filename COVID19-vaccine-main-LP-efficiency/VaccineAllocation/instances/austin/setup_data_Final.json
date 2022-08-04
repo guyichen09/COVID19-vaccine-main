@@ -1,7 +1,7 @@
 {
   "city": "austin",
   "start_date": "2020-02-28 00:00:00",
-  "end_date": "2022-04-20 00:00:00",
+  "end_date": "2022-09-30 00:00:00",
   "last_date_interventions": "2022-09-30 00:00:00",
   "hosp_beds": 1100,
   "icu": 150,

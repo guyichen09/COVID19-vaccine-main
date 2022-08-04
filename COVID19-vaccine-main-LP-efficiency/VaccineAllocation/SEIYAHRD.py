@@ -295,6 +295,13 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                                        instance.cal.fixed_transmission_reduction[t],
                                        N / N.sum(),
                                        calendar.get_day_type(t))
+            # NEED TO DELETE THIS THIS IS JUST TO MAKE IT WORK FOR PAST HISTORICAL PERIOD
+            else:
+                phi_t = instance.epi.effective_phi(instance.cal.schools_closed[len(instance.real_hosp) - 1],
+                                       instance.cal.fixed_cocooning[len(instance.real_hosp) - 1],
+                                       instance.cal.fixed_transmission_reduction[len(instance.real_hosp) - 1],
+                                       N / N.sum(),
+                                       calendar.get_day_type(len(instance.real_hosp)))
 
             # if the current time is within the history
             if config['det_history'] and t < len(instance.real_hosp):
@@ -471,14 +478,14 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
             if t == T_omicron:
                 # Move almost half of the people from recovered to susceptible:
                 immune_escape(epi.immune_escape_rate, t, types, v_policy, step_size)
-         
+
             if t >= v_policy._vaccines.vaccine_start_time:
 
                 # print("FIRST T")
                 # print(t)
 
                 S_before = np.zeros((5, 2))
-      
+
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_before += v_groups.S[t + 1]
 
@@ -488,7 +495,7 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
 
                     # if t == 577:
                     #     breakpoint()
-                    
+
                     out_sum = np.zeros((A, L))
                     S_out = np.zeros((A*L, 1))
                     N_out = np.zeros((A*L, 1))
@@ -509,6 +516,8 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                             # if v_groups.v_name == "v_3":
                             #     print(v_groups.v_in)
 
+                            # N_out = np.array([age_risk_allocation[t] for age_risk_allocation in v_groups.N_eligible]).reshape((10, 1))
+
                             N_out = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_groups.v_name, v_groups.v_in, v_groups.v_out, v_policy._instance.cal.calendar[t])
 
                             # print(np.sum(N_out))
@@ -516,10 +525,10 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                             ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
 
                             if types == 'int':
-                                out_sum += np.round(ratio_S_N*v_groups._S[step_size])   
+                                out_sum += np.round(ratio_S_N*v_groups._S[step_size])
                             else:
                                 out_sum += ratio_S_N*v_groups._S[step_size]
-                    
+
                     in_sum = np.zeros((A, L))
                     S_in = np.zeros((A*L, 1))
                     N_in = np.zeros((A*L, 1))
@@ -542,6 +551,8 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                             if t >= T_omicron:
                                 if (v_groups.v_name == "v_3" and v_temp.v_name == "v_2") or (v_groups.v_name == "v_2" and v_temp.v_name == "v_1"):
                                     S_in = epi.immune_escape_rate * np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
+
+                            # N_in = np.array([age_risk_allocation[t] for age_risk_allocation in v_temp.N_eligible]).reshape((10, 1))
 
                             N_in = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_temp.v_name, v_temp.v_in, v_temp.v_out, v_policy._instance.cal.calendar[t])
                             ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
@@ -569,8 +580,8 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
 
                 # print(np.sum(S_after))
 
-                if t == 317 + 273:
-                    breakpoint()
+                # if t == 317 + 273:
+                #     breakpoint()
 
                 # if t == 579:
                 #    breakpoint()

@@ -567,8 +567,8 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_after += v_groups.S[t + 1]
 
-                if t == 273 + 317:
-                    breakpoint()
+                # if t == 273 + 317:
+                #    breakpoint()
 
                 # print(np.sum(S_after))
 

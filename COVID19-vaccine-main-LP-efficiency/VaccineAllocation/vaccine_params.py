@@ -93,12 +93,32 @@ class Vaccine:
             if event is not None:
                 for i in range(event):
                     N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+            else:
+                if date > self.vaccine_allocation[vaccine_type][0]["supply"]["time"]:
+                    i = 0
+                    event_date = self.vaccine_allocation[vaccine_type][i]["supply"]["time"]
+                    while event_date < date:
+                        N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+                        if i + 1 == len(self.vaccine_allocation[vaccine_type]):
+                            break
+                        i += 1
+                        event_date = self.vaccine_allocation[vaccine_type][i]["supply"]["time"]
 
         for vaccine_type in v_out:
             event = self.event_lookup(vaccine_type, date)
             if event is not None:
                 for i in range(event):
                     N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+            else:
+                if date > self.vaccine_allocation[vaccine_type][0]["supply"]["time"]:
+                    i = 0
+                    event_date = self.vaccine_allocation[vaccine_type][i]["supply"]["time"]
+                    while event_date < date:
+                        N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+                        if i + 1 == len(self.vaccine_allocation[vaccine_type]):
+                            break
+                        i += 1
+                        event_date = self.vaccine_allocation[vaccine_type][i]["supply"]["time"]
 
         if vaccine_group_name == 'v_0':
             N_eligible = total_population.reshape((total_risk_gr, 1)) - N_out
