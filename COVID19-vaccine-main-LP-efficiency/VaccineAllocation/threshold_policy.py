@@ -8,7 +8,6 @@ import datetime as dt
 from collections import defaultdict
 from interventions import create_intLevel, form_interventions
 from itertools import product
-from SEIYAHRD import fix_policy, simulate_p
 from vaccine_policies import VaccineAllocationPolicy
 from trigger_policies import build_multi_tier_policy_candidates, build_ACS_policy_candidates, MultiTierPolicy, MultiTierPolicy_ACS
 #from reporting.plotting import plot_stoch_simulations

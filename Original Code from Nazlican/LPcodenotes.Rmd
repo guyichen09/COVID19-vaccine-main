@@ -7,10 +7,143 @@ header-includes:
 - \usepackage{setspace}\doublespacing
 ---
 
+# 08052022 Documentation of Important Bug
+
+## Overview of Problem
+
+- Suppose that we run a simulation with seeds 1,2,3. The $R^2$ for any seed is different if it is simulated first rather than simulated after another seed. Conditional on a seed not being simulated first, the seed's $R^2$ is the same, regardless of order. 
+- Similarly, if we run a simulation with seed 1, and then run the simulation again with seed 1, the $R^2$'s are different.
+- At first, I thought that this only meant the first replication (or first seed being tested) was incorrect, and perhaps there was some initialization that was happening in the first replication.
+- Unfortunately, this is not the case. The inverse is true. \textit{Only the first replication is correct.} All subsequent replications after the first replication are incorrect.
+- The reason is that the vaccine history is not being properly reset in between replications! 
+- Between replications, a $\texttt{Vaccine}$ instance is passed. This instance contains attributes such as \texttt{v\_beta\_reduct} and \texttt{v\_tau\_reduct}, which are supposed to decrease over time, corresponding to decreased efficacy against the Delta variant and Omicron variant, respectively. Only \textit{some} of the vaccine history is cleared between replications. The aforementioned efficacy attributes are \textit{not} cleared. Therefore, they carry over to subsequent replications. That is why every replication after the first replication is incorrect.
+- Below, I'll explain why conditional on a seed not being simulated first, the seed's $R^2$ is the same, regardless of order.
+
+## Code Details
+
+- These details are about the original code (without my edits).
+- In between replications, the function ```stoch_simulation_iterator``` in ```threshold_policy.py``` calls ```vaccine_policy.reset_vaccine_history()``` which is intended to clear the vaccine history. Here, ```vaccine_policy``` is an instance of the ```VaccineAllocationPolicy``` class in ```vaccine_policies.py```. ```vaccine_policy.reset_vaccine_history()``` calls ```v_group.reset_history()``` for every vaccine group. Each ```v_group``` is an instance of the ```VaccineGroup``` class in ```vaccine_params.py```. 
+- Below I have pasted the code for the method ```reset_history()``` -- the important SEIR states are reset to $0$, but crucially, some attributes are not reset. 
+
+```{}
+    def reset_history(self, instance, seed):
+        '''
+            reset history for a new simulation.
+        '''
+        T, A, L = instance.T, instance.A, instance.L
+        step_size = config['step_size']
+       
+        types = 'int' if seed >= 0 else 'float'
+        # breakpoint()
+        
+        self.S = np.zeros((T, A, L), dtype=types)
+        self.E = np.zeros((T, A, L), dtype=types)
+        self.IA = np.zeros((T, A, L), dtype=types)
+        self.IY = np.zeros((T, A, L), dtype=types)
+        self.PA = np.zeros((T, A, L), dtype=types)
+        self.PY = np.zeros((T, A, L), dtype=types)
+        self.IH = np.zeros((T, A, L), dtype=types)
+        self.ICU = np.zeros((T, A, L), dtype=types)
+        self.R = np.zeros((T, A, L), dtype=types)
+        self.D = np.zeros((T, A, L), dtype=types)
+        self.IYIH = np.zeros((T - 1, A, L))
+        self.IYICU = np.zeros((T - 1, A, L))
+        self.IHICU = np.zeros((T - 1, A, L))
+        self.ToICU = np.zeros((T - 1, A, L))
+        self.ToIHT = np.zeros((T - 1, A, L))
+        self.ToICUD = np.zeros((T - 1, A, L))
+        self.ToIYD = np.zeros((T - 1, A, L))
+        self.ToIA = np.zeros((T - 1, A, L))   
+        self.ToIY = np.zeros((T - 1, A, L))
+        
+        self._S = np.zeros((step_size + 1, A, L), dtype=types)
+        self._E = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IA = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IY = np.zeros((step_size + 1, A, L), dtype=types)
+        self._PA = np.zeros((step_size + 1, A, L), dtype=types)
+        self._PY = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IH = np.zeros((step_size + 1, A, L), dtype=types)
+        self._ICU = np.zeros((step_size + 1, A, L), dtype=types)
+        self._R = np.zeros((step_size + 1, A, L), dtype=types)
+        self._D = np.zeros((step_size + 1, A, L), dtype=types)
+        self._IYIH = np.zeros((step_size, A, L))
+        self._IYICU = np.zeros((step_size, A, L))
+        self._IHICU = np.zeros((step_size, A, L))
+        self._ToICU = np.zeros((step_size, A, L))
+        self._ToIHT = np.zeros((step_size, A, L))
+        self._ToICUD = np.zeros((step_size, A, L))
+        self._ToIYD = np.zeros((step_size, A, L))          
+        self._ToIA = np.zeros((T - 1, A, L))   
+        self._ToIY = np.zeros((T - 1, A, L))
+        
+        if self.v_name == 'v_0':
+            N, I0 = instance.N, instance.I0
+            # Initial Conditions (assumed)
+            self.PY[0] = I0
+            self.R[0] = 0
+            self.S[0] = N - self.PY[0] - self.IY[0]
+                
+        self._S[0] = self.S[0].copy()
+        self._E[0] = self.E[0].copy()
+        self._IA[0] = self.IA[0].copy()
+        self._IY[0] = self.IY[0].copy()
+        self._PA[0] = self.PA[0].copy()
+        self._PY[0] = self.PY[0].copy()
+        self._IH[0] = self.IH[0].copy()
+        self._ICU[0] = self.ICU[0].copy()
+        self._R[0] = self.R[0].copy()
+        self._D[0] = self.D[0].copy()
+```
+
+- Below I have pasted the code for two methods of ```VaccineGroup``` objects that modify two attributes ```v_beta_reduct``` and ```v_tau_reduct.```
+- The very initial values of ```v_beta_reduct``` and ```v_tau_reduct``` (their values at the beginning of the very first simulation replication) are read in from user-specified data. I will omit the details, but see ```__init__`` and ```define_groups``` in the ```Vaccine``` class and ```__init__``` in the ```VaccineGroup``` class (both classes are in ```vaccine_params.py```).
+
+```{}
+    def delta_update(self, prev):
+        '''
+            Update efficacy according to delta variant (VoC) prevelance.
+        '''
+        
+        self.v_beta_reduct = self.v_beta_reduct * (1 - prev) + 
+          self.v_beta_reduct_delta * prev #decreased efficacy against infection.
+        self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + 
+          self.v_tau_reduct_delta * prev #decreased efficacy against symptomatic infection.    
+     
+    def omicron_update(self, prev):
+        '''
+            Update efficacy according to omicron variant (VoC) prevelance.
+        '''
+        self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + 
+          self.v_tau_reduct_omicron * prev
+```
+
+- To test my hypothesis thoroughly, I ran 2 replications of the same seed back-to-back (seed 100). 
+- I modified the ```delta_update``` method to print "Delta Update" and the ```v_beta_reduct``` attribute as well as the ```prev``` argument for vaccine group ```"v_2"``` before the ```v_beta_reduct``` attribute is updated. (Note that analogous behavior occurs for all groups.)
+- The output is saved in ```08052022DeltaUpdateRep1.txt``` and ```08052022DeltaUpdateRep2.txt.``` 
+- These files are very long, but the beginning and end of the files are what we are interested in.
+- Although not documented in another text file, the $R^2$ for replication 2 and replication 3 (for the same seed, seed 100), is indeed the same. 
+
+- For replication 1, the initial ```v_beta_reduct``` is $0.9$ and the ```prev``` argument passed to it is $0.01$.
+  - The last values are $.7$ and $1.0$ respectively, and the second-to-last values are also $.7$ and $1.0$.
+- Now note that for replication 2, the initial ```v_beta_reduct``` is \textit{not} $0.9$ as it should be -- because proper clearing or resetting has not occurred! The initial ```v_beta_reduct``` is $0.7$ and the ```prev``` value is $.01$
+  - The ```prev``` are properly reset and start from the same value and increase in the same way within different replications because ```prev``` is passed outside of the vaccine-related objects.
+  - Note that ```v_beta_reduct``` \textit{does not change} within replication 2! See the ```delta_update``` code pasted above. Turns out, the value of ```self.v_beta_reduct_delta``` for this group is $0.7$, so once ```v_beta_reduct``` is also ```0.7```, the value of ```v_beta_reduct``` does not change despite updates. 
+- This is all why conditional on a seed not being simulated first, the seed's $R^2$ is the same, regardless of order.
+- The $R^2$ for Seed 100 for replications 1, 2, and 3 respectively are: rsq -1.1432008293623226, rsq -1.174342314895255, and rsq -1.174342314895255. The first and second values are different but the second and third values are the same.
+
+## The Fix
+
+- To further confirm my hypothesis, I ran tests in which subsequent replications use fresh, unadulterated deep copies of the ```vaccine_policy``` object, rather than using the same instance but calling the ```reset_history()``` method in between replications. Using fresh copies fixed the problem. Now seeds give the correct $R^2$ and their $R^2$ does not change depending on whether or not they are simulated first. 
+- In the code, my current plan is to update the ```reset_history()``` method to properly reset the ```v_beta_reduct``` and ```v_tau_reduct``` variables. I will check for any other variables that are not getting reset in between replications as well.
+- I will check any changes versus the \textit{original code} with the \text{fresh copies} (so, a debugged version of the original code).
+- A further modification, as part of a general restructuring plan, is to more clearly delineate which variables or attributes \textit{stay the same, regardless of replication}, and which ones \textit{change within a replication and therefore need to be reset}. This delineation has an additional advantage. Rather than copying or recreating an entire instance (and all of its many attributes), we may only need to copy some of its attributes between replications. 
+
+## Possible Consequences
+
+- Any analysis using the original code is possibly suspect.
+- In particular, I do not think we should use any previous seeds to "warm start" sample path generation in the new code.
+
 # 07272022 Meeting
-
-## Meeting Items
-
 
 ## Code Edits
 - I am only going to edit the constant "regular" multi-tier policy and deal with the ACS stuff later
@@ -26,7 +159,7 @@ header-includes:
 
 - I am not confident that the current version of the code generates contact matrices correctly. The code below is a suspicious snippet. This code below is from ```simulate_t``` from the file ```SEIYARDH.py```, which is called as a subroutine for every day $t = 1, 2, \dots$. See \texttt{trigger\_policy\_search.pdf} for a mindmap of the main function ```trigger_policy_search``` which is used for optimization. 
 
-```{python eval=FALSE}
+```{}
         for t_idx in range(1):
             t = t_date
             k_t =  policy._intervention_history[t]
@@ -133,7 +266,7 @@ Other stuff
 - If we have $1650$ policies, evaluating them on the training set would take about $5-6$ days. 
 - So, we still need to make adjustments and speed up the seed generaiton and simulation process.
 
-```{python eval=FALSE}
+```{}
 
 start = time.time()
 
@@ -195,7 +328,7 @@ print(time.time() - start)
   - Stage 5 / red: 10000
 - DM says also get number of days that patient capacity was violated
 - for ICU capacity, can do
-```{python eval=FALSE}
+```
 np.sum(sim_j[config["infeasible_field"]] > infeasible_cap_field[config['infeasible_field']])
 ```
 - I noticed that counting the number of days of ICU capacity violations historically and over the whole timeframe resulted in the same answer for every replication -- is this correct? 
@@ -254,7 +387,7 @@ np.sum(sim_j[config["infeasible_field"]] > infeasible_cap_field[config['infeasib
 
 # PASS notes
 - Current simulation state
-```{python eval=FALSE}
+```
 first screen deterministically using square root staffing rool
 for each policy:
   while training set reps not simulated:
@@ -270,7 +403,7 @@ pick best feasible solution
 - ```lambda_start``` is policy upper bound (```pub```) argument -- the reasoning for the variable name change is unclear smh
 - this is a WARNING: I think bad stuff happens if ```grid_size``` makes the above list comprehension take weird values -- setting ```grid_size = 1``` in the .json file seems to be the way to go
 - RuntimeWarning makes the program stop on the cluster! running with ```python 3.7 -W ignore``` makes it work though
-```{python eval=FALSE}
+```
 /home/lpei/scratch/06202022/COVID19-vaccine-main/VaccineAllocation/SEIYAHRD.py:210: RuntimeWarning: invalid value encountered in true_divide
   ICU_ratio = np.sum(ICU, axis=(1, 2))[:T]/(np.sum(ICU, axis=(1, 2))[:T] + np.sum(IH, axis=(1, 2))[:T]
 ```
@@ -292,7 +425,7 @@ pick best feasible solution
   - We check $R^2$ for every seed for every policy, even after we have formed a training set and even if we read in a seeds file -- see bottom of ```samplepathseedsbug2.txt``` for an example
 - There are also inefficiencies with passing/returning unecessary objects, and also returning output for every single day for each performance measure -- for the optimization, we only need 1 aggregate datapoint for feasibility and the objective function respectively!
 - Below is a summary of the code from lines 95-194 in ```policy_search_functions.py```
-```{python eval=FALSE}
+```{}
 
 # pseudocode summary of outer loops -- details deleted
 for each threshold candidate:
@@ -341,7 +474,7 @@ for each threshold candidate:
 - The overall population N changes due to discretization error -- when I take away randomness though, N is always the same (gut check for correctness of code)
 - Based on https://docs.idmod.org/projects/emod-hiv/en/latest/model-seir.html
 - Code is in ```SEIR_toy.py```
-```{python eval=FALSE}
+```{}
 # all have S0 = 1e6, end_time = 1e3, num_reps = 1e2
 # diseaseA: beta = 0.2 and sigma = 0.5 (50% of infection after exposure)
 # diseaseB: similar to diseaseA, but slightly higher beta and sigma
@@ -408,7 +541,7 @@ A_C_CRN = compute_sample_variance_of_difference(diseaseA_seed1_data, diseaseC_se
 Add this to top of main_allocation.py
 IMHO this is a better fix than futzing with $PYTHONPATH
 
-```{python blah}
+```{}
 import sys
 sys.path.append("//Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/VaccineAllocation")
 sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main")

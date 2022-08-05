@@ -270,6 +270,9 @@ class Vaccine_group:
         self.v_tau_reduct_omicron = v_tau_reduct_omicron
         self.v_name = v_name
 
+        if self.v_name == "v_2":
+            print(self.v_beta_reduct)
+
         # LP -- formerly vaccine_flow
 
         if self.v_name == 'v_0':
@@ -305,6 +308,7 @@ class Vaccine_group:
         self.ICU = np.zeros((T, A, L), dtype=types)
         self.R = np.zeros((T, A, L), dtype=types)
         self.D = np.zeros((T, A, L), dtype=types)
+
         self.IYIH = np.zeros((T - 1, A, L))
         self.IYICU = np.zeros((T - 1, A, L))
         self.IHICU = np.zeros((T - 1, A, L))
@@ -375,6 +379,7 @@ class Vaccine_group:
         self.ICU = np.zeros((T, A, L), dtype=types)
         self.R = np.zeros((T, A, L), dtype=types)
         self.D = np.zeros((T, A, L), dtype=types)
+
         self.IYIH = np.zeros((T - 1, A, L))
         self.IYICU = np.zeros((T - 1, A, L))
         self.IHICU = np.zeros((T - 1, A, L))
@@ -428,19 +433,29 @@ class Vaccine_group:
             Update efficacy according to delta variant (VoC) prevelance.
         '''
 
+        # if self.v_name == "v_2":
+        #    print("Delta Update")
+        #    print(self.v_beta_reduct)
+        #    print(prev)
+        # print(self.v_tau_reduct)
+
         self.v_beta_reduct = self.v_beta_reduct * (1 - prev) + self.v_beta_reduct_delta * prev #decreased efficacy against infection.
         self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + self.v_tau_reduct_delta * prev #decreased efficacy against symptomatic infection.
 
-        # print("Delta Update")
         # print(self.v_beta_reduct)
         # print(self.v_tau_reduct)
-
+        # print("~~~~~~~~~~~~~~~~~~~~")
 
     def omicron_update(self, prev):
         '''
             Update efficacy according to omicron variant (VoC) prevelance.
         '''
+
+        # print("Omicron Update")
+        # print(self.v_tau_reduct)
+
         self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + self.v_tau_reduct_omicron * prev
         #breakpoint()
 
-        # print("Omicron Update")
+        # print(self.v_tau_reduct)
+        # print("~~~~~~~~~~~~~~~~~~~~")

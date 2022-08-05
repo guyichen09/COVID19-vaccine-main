@@ -73,6 +73,7 @@ def simulate_vaccine(instance, v_policy, seed=-1, **kwargs):
         kwargs (dict): additional parameters that are passed to the policy function
     '''
     kwargs["acs_triggered"] = False
+
     if "acs_type" in kwargs.keys():
         if kwargs["acs_type"] == "IHT":
             kwargs["_capacity"] = [instance.hosp_beds] * instance.T
@@ -481,20 +482,12 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
 
             if t >= v_policy._vaccines.vaccine_start_time:
 
-                # print("FIRST T")
-                # print(t)
-
                 S_before = np.zeros((5, 2))
 
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_before += v_groups.S[t + 1]
 
-                # LP -- THIS IS WHERE V_IN AND V_OUT STUFF HAPPENS
-
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
-
-                    # if t == 577:
-                    #     breakpoint()
 
                     out_sum = np.zeros((A, L))
                     S_out = np.zeros((A*L, 1))
@@ -505,22 +498,12 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
 
                         if event is not None:
 
-                            # if t == 331:
-                            #     breakpoint()
-
                             S_out = np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
                             if t >= T_omicron:
                                 if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
                                     S_out = epi.immune_escape_rate * np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            # if v_groups.v_name == "v_3":
-                            #     print(v_groups.v_in)
-
-                            # N_out = np.array([age_risk_allocation[t] for age_risk_allocation in v_groups.N_eligible]).reshape((10, 1))
-
                             N_out = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_groups.v_name, v_groups.v_in, v_groups.v_out, v_policy._instance.cal.calendar[t])
-
-                            # print(np.sum(N_out))
 
                             ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
 
@@ -539,10 +522,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                             if v_g.v_name == v_policy._allocation[vaccine_type][0]["from"]:
                                 v_temp = v_g
 
-                        # print(vaccine_type)
-                        # print(v_temp.v_name)
-                        # print("~~~~~~")
-
                         event = v_policy._vaccines.event_lookup(vaccine_type, v_policy._instance.cal.calendar[t])
 
                         if event is not None:
@@ -552,8 +531,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                                 if (v_groups.v_name == "v_3" and v_temp.v_name == "v_2") or (v_groups.v_name == "v_2" and v_temp.v_name == "v_1"):
                                     S_in = epi.immune_escape_rate * np.reshape(v_policy._allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            # N_in = np.array([age_risk_allocation[t] for age_risk_allocation in v_temp.N_eligible]).reshape((10, 1))
-
                             N_in = v_policy._vaccines.get_num_eligible(instance.N, instance.A * instance.L, v_temp.v_name, v_temp.v_in, v_temp.v_out, v_policy._instance.cal.calendar[t])
                             ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
 
@@ -561,8 +538,6 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
                                 in_sum += np.round(ratio_S_N*v_temp._S[step_size])
                             else:
                                 in_sum += ratio_S_N*v_temp._S[step_size]
-
-                    # print(t, np.sum(in_sum), np.sum(out_sum))
 
                     if types == "float":
                         v_groups.S[t + 1] = v_groups.S[t + 1] + (np.array(in_sum - out_sum))
@@ -573,43 +548,10 @@ def simulate_t(instance, v_policy, t_date, epi_rand, epi_orig, rnd_stream, seed=
 
                     S_after = np.zeros((5, 2))
 
-                    # print(in_sum)
-
                 for idx, v_groups in enumerate(v_policy._vaccine_groups):
                     S_after += v_groups.S[t + 1]
 
-                # print(np.sum(S_after))
-
-                # if t == 317 + 273:
-                #     breakpoint()
-
-                # if t == 579:
-                #    breakpoint()
-
-                #if t == 331:
-                #    for i in range(len(v_policy._allocation["v_booster"])):
-                #        print(v_policy._allocation["v_second"][i]["from"])
-
-                #if t == 331 or t == 332:
-                #    print(S_in)
-                #    print(S_out)
-                #    print(N_in)
-                #   print(N_out)
-
-                # print(t)
-                # print(S_before)
-                # print(S_after)
-
-                # if t == 340:
-                #     breakpoint()
-
-                # for idx, v_groups in enumerate(v_policy._vaccine_groups):
-                #     print(v_groups.v_name)
-                #    print(v_groups.S[t + 1] - v_groups.S[t])
-                    # print(v_groups.S[t] - v_groups.S[t - 1])
-
                 imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
-                # print(imbalance)
 
                 assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {instance.cal.calendar[t]}, {t}'    
 
@@ -680,50 +622,6 @@ def system_simulation(mp_sim_input):
     kwargs_new["cost_info"] = cost_info
     #breakpoint()
     return out_sim, policy_cost, policy, thrs, seed, kwargs_new
-
-@timeit
-def simulate_p(mp_pool, input_iter):
-
-    '''
-    Launches simulation in parallel
-    Args:
-        mp_pool (Pool): pool to parallelize
-        input_ite (iterator): iterator with the inputs to parallelize.
-            Input signature: 
-                instance, policy, cost_func, interventions, kwargs (as a dict)
-    Return:
-        list of outputs is a tuple with:
-            out_sim (dict): output of the simulation
-            policy_cost (float): evaluation of cost_func
-            policy (object): the policy used in the simulation
-            seed (int): seed used in the simulation
-            kwargs (dict): additional parameters used
-
-    '''
-    if mp_pool is None:
-        results = []
-        for sim_input in input_iter:
-            results.append(system_simulation(sim_input))
-        return results
-    else:
-        results = mp_pool.map(system_simulation, input_iter)
-        return results
-
-
-def dummy_cost(*args, **kwargs):
-    return 0
-
-
-def fix_policy(t, z, *args, **kwargs):
-    '''
-        Returns the intervention according to a
-        fix policy z
-        Args:
-            t (int): time of the intervention
-            z (ndarray): fix policy
-    '''
-    return z[t]
-
 
 WEEKDAY = 1
 WEEKEND = 2

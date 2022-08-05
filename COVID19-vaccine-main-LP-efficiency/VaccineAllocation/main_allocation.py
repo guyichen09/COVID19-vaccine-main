@@ -34,7 +34,7 @@ if __name__ == '__main__':
     from trigger_policies import MultiTierPolicy as MTP
     from trigger_policies import CDCTierPolicy as CTP
     from vaccine_policies import VaccineAllocationPolicy as VAP
-    from policy_search_functions import trigger_policy_search, trigger_policy_search_det, LP_trigger_policy_search
+    from policy_search_functions import trigger_policy_search, LP_trigger_policy_search
 
     # Parse city and get corresponding instance
     instance = load_instance(args.city, setup_file_name=args.f, transmission_file_name=args.tr, hospitalization_file_name=args.hos)
