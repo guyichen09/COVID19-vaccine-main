@@ -298,16 +298,17 @@ class Vaccine_group:
         types = "float"
         #breakpoint()
 
-        self.S = np.zeros((T, A, L), dtype=types)
-        self.E = np.zeros((T, A, L), dtype=types)
-        self.IA = np.zeros((T, A, L), dtype=types)
-        self.IY = np.zeros((T, A, L), dtype=types)
-        self.PA = np.zeros((T, A, L), dtype=types)
-        self.PY = np.zeros((T, A, L), dtype=types)
+        self.S = np.zeros((A, L), dtype=types)
+        self.E = np.zeros((A, L), dtype=types)
+        self.IA = np.zeros((A, L), dtype=types)
+        self.IY = np.zeros((A, L), dtype=types)
+        self.PA = np.zeros((A, L), dtype=types)
+        self.PY = np.zeros((A, L), dtype=types)
+        self.R = np.zeros((A, L), dtype=types)
+        self.D = np.zeros((A, L), dtype=types)
+
         self.IH = np.zeros((T, A, L), dtype=types)
         self.ICU = np.zeros((T, A, L), dtype=types)
-        self.R = np.zeros((T, A, L), dtype=types)
-        self.D = np.zeros((T, A, L), dtype=types)
 
         self.IYIH = np.zeros((T - 1, A, L))
         self.IYICU = np.zeros((T - 1, A, L))
@@ -339,24 +340,24 @@ class Vaccine_group:
         self._ToIA = np.zeros((T - 1, A, L))
         self._ToIY = np.zeros((T - 1, A, L))
 
-
         if self.v_name == 'v_0':
             N, I0 = instance.N, instance.I0
             # Initial Conditions (assumed)
-            self.PY[0] = I0
-            self.R[0] = 0
-            self.S[0] = N - self.PY[0] - self.IY[0]
+            self.PY = I0
+            self.R = 0
+            self.S = N - self.PY - self.IY
 
-        self._S[0] = self.S[0].copy()
-        self._E[0] = self.E[0].copy()
-        self._IA[0] = self.IA[0].copy()
-        self._IY[0] = self.IY[0].copy()
-        self._PA[0] = self.PA[0].copy()
-        self._PY[0] = self.PY[0].copy()
+        self._S[0] = self.S
+        self._E[0] = self.E
+        self._IA[0] = self.IA
+        self._IY[0] = self.IY
+        self._PA[0] = self.PA
+        self._PY[0] = self.PY
+        self._R[0] = self.R
+        self._D[0] = self.D
+
         self._IH[0] = self.IH[0].copy()
         self._ICU[0] = self.ICU[0].copy()
-        self._R[0] = self.R[0].copy()
-        self._D[0] = self.D[0].copy()
 
     def reset_history(self, instance, seed):
         '''
@@ -369,16 +370,19 @@ class Vaccine_group:
         # types = "int"
         #breakpoint()
 
-        self.S = np.zeros((T, A, L), dtype=types)
-        self.E = np.zeros((T, A, L), dtype=types)
-        self.IA = np.zeros((T, A, L), dtype=types)
-        self.IY = np.zeros((T, A, L), dtype=types)
-        self.PA = np.zeros((T, A, L), dtype=types)
-        self.PY = np.zeros((T, A, L), dtype=types)
+        types = "float"
+
+        self.S = np.zeros((A, L), dtype=types)
+        self.E = np.zeros((A, L), dtype=types)
+        self.IA = np.zeros((A, L), dtype=types)
+        self.IY = np.zeros((A, L), dtype=types)
+        self.PA = np.zeros((A, L), dtype=types)
+        self.PY = np.zeros((A, L), dtype=types)
+        self.R = np.zeros((A, L), dtype=types)
+        self.D = np.zeros((A, L), dtype=types)
+
         self.IH = np.zeros((T, A, L), dtype=types)
         self.ICU = np.zeros((T, A, L), dtype=types)
-        self.R = np.zeros((T, A, L), dtype=types)
-        self.D = np.zeros((T, A, L), dtype=types)
 
         self.IYIH = np.zeros((T - 1, A, L))
         self.IYICU = np.zeros((T - 1, A, L))
@@ -413,20 +417,21 @@ class Vaccine_group:
         if self.v_name == 'v_0':
             N, I0 = instance.N, instance.I0
             # Initial Conditions (assumed)
-            self.PY[0] = I0
-            self.R[0] = 0
-            self.S[0] = N - self.PY[0] - self.IY[0]
+            self.PY = I0
+            self.R = 0
+            self.S = N - self.PY - self.IY
 
-        self._S[0] = self.S[0].copy()
-        self._E[0] = self.E[0].copy()
-        self._IA[0] = self.IA[0].copy()
-        self._IY[0] = self.IY[0].copy()
-        self._PA[0] = self.PA[0].copy()
-        self._PY[0] = self.PY[0].copy()
+        self._S[0] = self.S
+        self._E[0] = self.E
+        self._IA[0] = self.IA
+        self._IY[0] = self.IY
+        self._PA[0] = self.PA
+        self._PY[0] = self.PY
+        self._R[0] = self.R
+        self._D[0] = self.D
+
         self._IH[0] = self.IH[0].copy()
         self._ICU[0] = self.ICU[0].copy()
-        self._R[0] = self.R[0].copy()
-        self._D[0] = self.D[0].copy()
 
     def delta_update(self, prev):
         '''
