@@ -7,6 +7,19 @@ header-includes:
 - \usepackage{setspace}\doublespacing
 ---
 
+# 08102022 Meeting
+
+## Notes on Original Code
+
+- Important inconsistency:
+  - The ```delta_update``` and ```omicron_update``` methods in the ```Vaccine_group``` class (in ```vaccine_params.py```) update ```v_beta_reduct``` and ```v_tau_reduct``` for each vaccine group \textit{in place}. Vaccine groups do not get reset within a replication. The value of ```v_beta_reduct``` at time $t+1$ is computed based on its value in the previous time period $t$. 
+  - The ```delta_update_param``` and ```omicron_update_param``` methods in the ```EpiSetup``` class (in ```epi_params.py```) update lots of parameters, also \textit{in place}. However, between each timepoint within a replication, the ```EpiSetup``` instance essentially gets reset. See ```epi = copy.deepcopy(epi_rand)``` call within the ```simulate_t``` function. The value of each updated parameter at time $t+1$ is computed based on its \textit{original value} at time $0$.
+  - If this copying (resetting) of the ```EpiSetup``` instance does not happen, then the code does not work -- some of the updated parameters become negative (and the mathematics of the update are also different). 
+  - I'm documenting this because it's important to note.
+  
+- Inconsistency on data types
+  - In each ```Vaccine_group``` instance, the simulation variables for that vaccine group are instantiated as floats, but then reset as integers. Not super sure what the difference between the conditions of ```types = "int"``` and ```types = "float"``` in the simulation computation, but there is a small difference in the rsquared output. I think it's better to just make the sensitive data types doubles.
+
 # 08052022 Documentation of Important Bug
 
 ## Overview of Problem

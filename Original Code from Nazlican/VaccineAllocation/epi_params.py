@@ -319,7 +319,6 @@ class EpiSetup:
     def update_hosp_duration(self):
         self.gamma_ICU = self.gamma_ICU0*(1 + self.alpha1)
         self.mu_ICU = self.mu_ICU0*(1 + self.alpha3)
-        #self.mu_ICU = self.mu_ICU0*(1 + self.alpha1)
         self.gamma_IH = self.gamma_IH0*(1 - self.alpha2)
     
     def update_icu_params(self, rdrate):

@@ -57,7 +57,7 @@ def trigger_policy_search(instance,
     print(t_start)
 
     # LP
-    crn_seeds = [13, 10, 21]
+    crn_seeds = [100]
     
     selected_vaccine_policy = vaccine_policy
     # Build an iterator of all the candidate trigger policies (with given fixed vaccine policy) to be simulated by simulate_p

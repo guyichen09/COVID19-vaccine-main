@@ -91,6 +91,7 @@ def simulate_vaccine(instance, policy, interventions, v_policy, seed=-1, **kwarg
         types = 'float'
     else:
         types = 'int' if seed >= 0 else 'float'
+    types = "float"
 
     # Random stream for stochastic simulations
     if config["det_param"]:
@@ -197,9 +198,6 @@ def simulate_vaccine(instance, policy, interventions, v_policy, seed=-1, **kwarg
                 IH_vac = v_group.IH
                 
         total_imbalance = np.sum(S[t] + E[t] + IA[t] + IY[t] + IH[t] + R[t] + D[t] + PA[t] + PY[t] + ICU[t]) - np.sum(N)
-
-        if t == 18:
-            breakpoint()
         
         assert np.abs(total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {instance.cal.calendar[t]}, {t}' 
     
@@ -289,6 +287,7 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
             types = 'float'
         else:
             types = 'int' if seed >= 0 else 'float'
+        types = "float"
         
         for t_idx in range(1):
             t = t_date

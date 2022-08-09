@@ -273,15 +273,15 @@ class VaccineGroup:
         self.IH = np.zeros((T, A, L), dtype=types)
         self.ICU = np.zeros((T, A, L), dtype=types)
 
-        self.IYIH = np.zeros((T - 1, A, L))
-        self.IYICU = np.zeros((T - 1, A, L))
-        self.IHICU = np.zeros((T - 1, A, L))
-        self.ToICU = np.zeros((T - 1, A, L))
-        self.ToIHT = np.zeros((T - 1, A, L))
-        self.ToICUD = np.zeros((T - 1, A, L))
-        self.ToIYD = np.zeros((T - 1, A, L))
-        self.ToIA = np.zeros((T - 1, A, L))
-        self.ToIY = np.zeros((T - 1, A, L))
+        self.IYIH = np.zeros((A, L))
+        self.IYICU = np.zeros((A, L))
+        self.IHICU = np.zeros((A, L))
+        self.ToICU = np.zeros((A, L))
+        self.ToIHT = np.zeros((A, L))
+        self.ToICUD = np.zeros((A, L))
+        self.ToIYD = np.zeros((A, L))
+        self.ToIA = np.zeros((A, L))
+        self.ToIY = np.zeros((A, L))
 
         self._S = np.zeros((step_size + 1, A, L), dtype=types)
         self._E = np.zeros((step_size + 1, A, L), dtype=types)
@@ -301,8 +301,8 @@ class VaccineGroup:
         self._ToIHT = np.zeros((step_size, A, L))
         self._ToICUD = np.zeros((step_size, A, L))
         self._ToIYD = np.zeros((step_size, A, L))
-        self._ToIA = np.zeros((T - 1, A, L))
-        self._ToIY = np.zeros((T - 1, A, L))
+        self._ToIA = np.zeros((step_size, A, L))
+        self._ToIY = np.zeros((step_size, A, L))
 
         if self.v_name == 'v_0':
             N, I0 = instance.N, instance.I0

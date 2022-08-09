@@ -75,9 +75,21 @@ def LP_trigger_policy_search(instance,
     start = time.time()
     test = SimulationReplication(instance, vaccines, 100)
     test.simulate_time_period(1,1,1)
+
     print(time.time() - start)
 
-    print(test)
+    hosp_benchmark = instance.real_hosp
+    real_hosp_end_ix = len(hosp_benchmark)
+
+    IH_sim = test.ICU + test.IH
+    IH_sim = IH_sim.sum(axis=(2, 1))
+    IH_sim = IH_sim[:real_hosp_end_ix]
+
+    f_benchmark = hosp_benchmark
+    rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+    print(rsq)
+
+    # print(test)
 
     # for i in range(3):
     #     for CRN_SEED in [100]:

@@ -1,6 +1,7 @@
 '''
     Module to compute threshold type policies
 '''
+import copy
 import pickle
 import numpy as np
 import multiprocessing as mp
@@ -165,18 +166,18 @@ def policy_multi_iterator(instance,
                 mt_policy = MultiTierPolicy_ACS(instance, tiers, thrs, acs_thrs, acs_length, acs_lead_time, acs_Q, acs_type)
                 mt_policy.set_tier_history(SD_state.copy())
                 mt_policy.set_intervention_history(z_ini.copy())
-                yield instance, mt_policy, obj_fun, interventions, fixed_vaccine_policy, -1, kwargs
+                yield instance, mt_policy, obj_fun, interventions, copy.deepcopy(fixed_vaccine_policy), -1, kwargs
         else:
             for thrs in build_multi_tier_policy_candidates(instance, tiers, threshold_type=policy_class, lambda_start=policy_ub):
                 mt_policy = MultiTierPolicy(instance, tiers, thrs, policy_class, community_transmision)
                 mt_policy.set_tier_history(SD_state.copy())
                 mt_policy.set_intervention_history(z_ini.copy())
-                yield instance, mt_policy, obj_fun, interventions, fixed_vaccine_policy, -1, kwargs
+                yield instance, mt_policy, obj_fun, interventions, copy.deepcopy(fixed_vaccine_policy), -1, kwargs
     else:   
         fixed_policy.set_tier_history(SD_state.copy())
         fixed_policy.set_intervention_history(z_ini.copy())
         fixed_policy.set_surge_history(SD_state.copy())  
-        yield instance, fixed_policy, obj_fun, interventions, fixed_vaccine_policy, -1, kwargs
+        yield instance, fixed_policy, obj_fun, interventions, copy.deepcopy(fixed_vaccine_policy), -1, kwargs
 
        
 def stochastic_iterator(instance,
@@ -295,7 +296,7 @@ def stoch_simulation_iterator(instance,
     #breakpoint()
     for rep_i in range(reps):
         r_seed = seeds[rep_i] + (seed_shift if seeds[rep_i] >= 0 else 0)
-        vaccine_policy.reset_vaccine_history(instance, r_seed)
+        vaccine_policy = copy.deepcopy(vaccine_policy)
         policy_copy = policy.deep_copy()
         policy_copy.set_tier_history(SD_state.copy())
         policy_copy.set_intervention_history(z_ini.copy())

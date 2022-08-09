@@ -38,7 +38,7 @@ class SimulationReplication:
         self.define_epi()
         self.define_groups()
         self.step_size = config["step_size"]
-        self.types = "int"
+        self.types = "float"
 
     def define_epi(self):
 
@@ -146,15 +146,15 @@ class SimulationReplication:
             self.ICU = np.zeros((T, A, L), dtype=self.types)
 
             # Additional tracking variables (for triggers)
-            self.IYIH = np.zeros((T - 1, A, L))
-            self.IYICU = np.zeros((T - 1, A, L))
-            self.IHICU = np.zeros((T - 1, A, L))
-            self.ToICU = np.zeros((T - 1, A, L))
-            self.ToIHT = np.zeros((T - 1, A, L))
-            self.ToICUD = np.zeros((T - 1, A, L))
-            self.ToIYD = np.zeros((T - 1, A, L))
-            self.ToIA = np.zeros((T - 1, A, L))
-            self.ToIY = np.zeros((T - 1, A, L))
+            self.IYIH = np.zeros((A, L))
+            self.IYICU = np.zeros((A, L))
+            self.IHICU = np.zeros((A, L))
+            self.ToICU = np.zeros((A, L))
+            self.ToIHT = np.zeros((A, L))
+            self.ToICUD = np.zeros((A, L))
+            self.ToIYD = np.zeros((A, L))
+            self.ToIA = np.zeros((A, L))
+            self.ToIY = np.zeros((A, L))
 
             for v_group in self.vaccine_groups:
 
@@ -385,15 +385,15 @@ class SimulationReplication:
                 v_groups.IH[t + 1] = v_groups._IH[self.step_size].copy()
                 v_groups.ICU[t + 1] = v_groups._ICU[self.step_size].copy()
 
-                v_groups.IYIH[t] = v_groups._IYIH.sum(axis=0)
-                v_groups.IYICU[t] = v_groups._IYICU.sum(axis=0)
-                v_groups.IHICU[t] = v_groups._IHICU.sum(axis=0)
-                v_groups.ToICU[t] = v_groups._ToICU.sum(axis=0)
-                v_groups.ToIHT[t] = v_groups._ToIHT.sum(axis=0)
-                v_groups.ToICUD[t] = v_groups._ToICUD.sum(axis=0)
-                v_groups.ToIYD[t] = v_groups._ToIYD.sum(axis=0)
-                v_groups.ToIY[t] = v_groups._ToIY.sum(axis=0)
-                v_groups.ToIA[t] = v_groups._ToIA.sum(axis=0)
+                v_groups.IYIH = v_groups._IYIH.sum(axis=0)
+                v_groups.IYICU = v_groups._IYICU.sum(axis=0)
+                v_groups.IHICU = v_groups._IHICU.sum(axis=0)
+                v_groups.ToICU = v_groups._ToICU.sum(axis=0)
+                v_groups.ToIHT = v_groups._ToIHT.sum(axis=0)
+                v_groups.ToICUD = v_groups._ToICUD.sum(axis=0)
+                v_groups.ToIYD = v_groups._ToIYD.sum(axis=0)
+                v_groups.ToIY = v_groups._ToIY.sum(axis=0)
+                v_groups.ToIA = v_groups._ToIA.sum(axis=0)
 
             if t == T_omicron:
                 # Move almost half of the people from recovered to susceptible:
