@@ -40,7 +40,6 @@ class VaccineAllocationPolicy():
             total_allocation_p_a_r += allocation_item['within_proportion']
             total_allocation += allocation_item['assignment']
 
-
         print('Total allocated vaccine first dose (within-proportion):')
         print(np.round(total_allocation_p_a_r, 4))
 
@@ -49,7 +48,6 @@ class VaccineAllocationPolicy():
         for allocation_item in allocation['v_wane']:
             total_allocation_p_a_r += allocation_item['within_proportion']
             total_allocation += allocation_item['assignment']
-
 
         print('Total allocated waneddose (within-proportion):')
         print(np.round(total_allocation_p_a_r, 4))

@@ -127,32 +127,6 @@ class Vaccine:
 
         return N_eligible
 
-    def define_groups(self):
-        '''
-             Define different vaccine groups.
-             {
-                 group 0: unvaccinated group,
-                 group 1: partially vaccinated,
-                 group 2: fully vaccinated,
-                 group 3: waning efficacy group.
-             }
-
-             Assuming:
-                 - one type of vaccine with two-doses
-                 - after first dose move to group 1 compartment.
-                 - after second dose move to group 2 compartment.
-                 - after efficacy wanes, move to group 3 compartment.
-                 - If booster shot is administred move from group 3 compartment to group 2 compartment.
-
-        '''
-        # Including vaccine groups
-        self._vaccine_groups = []
-        self._vaccine_groups.append(Vaccine_group('v_0', 0, 0, 0, 0, 0, self.instance)) #unvax
-        self._vaccine_groups.append(Vaccine_group('v_1', self.beta_reduct[1], self.tau_reduct[1], self.beta_reduct_delta[1], self.tau_reduct_delta[1], self.tau_reduct_omicron[1], self.instance)) # partially vaccinated
-        self._vaccine_groups.append(Vaccine_group('v_2', self.beta_reduct[2], self.tau_reduct[2], self.beta_reduct_delta[2], self.tau_reduct_delta[2], self.tau_reduct_omicron[2], self.instance)) # fully vaccinated
-        self._vaccine_groups.append(Vaccine_group('v_3', self.beta_reduct[0], self.tau_reduct[0], self.beta_reduct_delta[0], self.tau_reduct_delta[0], self.tau_reduct_omicron[0], self.instance)) # waning efficacy
-        return self._vaccine_groups
-
     def define_supply(self, instance, vaccine_allocation_data, booster_allocation_data):
         '''
         Load vaccine supply and allocation data, and process them.
@@ -163,12 +137,10 @@ class Vaccine:
         self.first_dose_time = [time + dt.timedelta(days = self.effect_time) for time in vaccine_allocation_data['vaccine_time']]
         self.second_dose_time = [time + dt.timedelta(days = self.second_dose_time + self.effect_time) for time in self.first_dose_time if time + dt.timedelta(days = self.second_dose_time + self.effect_time) <= instance.end_date]
 
-
         self.waning_time = [time + dt.timedelta(days = self.waning_time)  for time in vaccine_allocation_data['vaccine_time'] if time + dt.timedelta(days = self.waning_time) <= instance.end_date]
         self.vaccine_proportion = [amount for amount in vaccine_allocation_data['vaccine_amount']]
 
         self.vaccine_start_time = np.where(np.array(instance.cal.calendar) == self.actual_vaccine_time[0])[0]
-
 
         v_first_allocation = []
         v_second_allocation = []
@@ -206,13 +178,11 @@ class Vaccine:
                 allocation_item = {'assignment': vac_assignment, 'proportion': pro_round,'within_proportion': within_proportion,  'supply': supply_second_dose, 'type': 'second_dose', 'from': 'v_1', 'to': 'v_2'}
                 v_second_allocation.append(allocation_item)
 
-
             # Waning vaccine efficacy:
             if i < len(self.waning_time):
                 supply_waning =  {'time': self.waning_time[i], 'amount': self.vaccine_proportion[i], 'type': "waning"}
                 allocation_item = {'assignment': vac_assignment, 'proportion': pro_round, 'within_proportion': within_proportion, 'supply': supply_waning, 'type': 'waning', 'from': 'v_2', 'to': 'v_3'}
                 v_wane_allocation.append(allocation_item)
-
 
         # Fixed booster vaccine allocation:
         if booster_allocation_data is not None:
@@ -242,11 +212,9 @@ class Vaccine:
                 allocation_item = {'assignment': vac_assignment, 'proportion': pro_round, 'within_proportion': within_proportion,  'supply': supply_booster_dose, 'type': 'booster_dose', 'from': 'v_3', 'to': 'v_2'}
                 v_booster_allocation.append(allocation_item)
 
-
-
         return {'v_first': v_first_allocation, 'v_second': v_second_allocation, 'v_booster': v_booster_allocation, 'v_wane': v_wane_allocation}
 
-class Vaccine_group:
+class VaccineGroup:
     def __init__(self, v_name, v_beta_reduct, v_tau_reduct, v_beta_reduct_delta, v_tau_reduct_delta, v_tau_reduct_omicron, instance):
         '''
         Define each vaccine status as a group. Define each set of compartments for vaccine group.
@@ -269,11 +237,6 @@ class Vaccine_group:
         self.v_tau_reduct_delta = v_tau_reduct_delta
         self.v_tau_reduct_omicron = v_tau_reduct_omicron
         self.v_name = v_name
-
-        if self.v_name == "v_2":
-            print(self.v_beta_reduct)
-
-        # LP -- formerly vaccine_flow
 
         if self.v_name == 'v_0':
             self.v_in = ()
@@ -330,80 +293,7 @@ class Vaccine_group:
         self._ICU = np.zeros((step_size + 1, A, L), dtype=types)
         self._R = np.zeros((step_size + 1, A, L), dtype=types)
         self._D = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IYIH = np.zeros((step_size, A, L))
-        self._IYICU = np.zeros((step_size, A, L))
-        self._IHICU = np.zeros((step_size, A, L))
-        self._ToICU = np.zeros((step_size, A, L))
-        self._ToIHT = np.zeros((step_size, A, L))
-        self._ToICUD = np.zeros((step_size, A, L))
-        self._ToIYD = np.zeros((step_size, A, L))
-        self._ToIA = np.zeros((T - 1, A, L))
-        self._ToIY = np.zeros((T - 1, A, L))
 
-        if self.v_name == 'v_0':
-            N, I0 = instance.N, instance.I0
-            # Initial Conditions (assumed)
-            self.PY = I0
-            self.R = 0
-            self.S = N - self.PY - self.IY
-
-        self._S[0] = self.S
-        self._E[0] = self.E
-        self._IA[0] = self.IA
-        self._IY[0] = self.IY
-        self._PA[0] = self.PA
-        self._PY[0] = self.PY
-        self._R[0] = self.R
-        self._D[0] = self.D
-
-        self._IH[0] = self.IH[0].copy()
-        self._ICU[0] = self.ICU[0].copy()
-
-    def reset_history(self, instance, seed):
-        '''
-            reset history for a new simulation.
-        '''
-        T, A, L = instance.T, instance.A, instance.L
-        step_size = config['step_size']
-
-        types = 'int' if seed >= 0 else 'float'
-        # types = "int"
-        #breakpoint()
-
-        types = "float"
-
-        self.S = np.zeros((A, L), dtype=types)
-        self.E = np.zeros((A, L), dtype=types)
-        self.IA = np.zeros((A, L), dtype=types)
-        self.IY = np.zeros((A, L), dtype=types)
-        self.PA = np.zeros((A, L), dtype=types)
-        self.PY = np.zeros((A, L), dtype=types)
-        self.R = np.zeros((A, L), dtype=types)
-        self.D = np.zeros((A, L), dtype=types)
-
-        self.IH = np.zeros((T, A, L), dtype=types)
-        self.ICU = np.zeros((T, A, L), dtype=types)
-
-        self.IYIH = np.zeros((T - 1, A, L))
-        self.IYICU = np.zeros((T - 1, A, L))
-        self.IHICU = np.zeros((T - 1, A, L))
-        self.ToICU = np.zeros((T - 1, A, L))
-        self.ToIHT = np.zeros((T - 1, A, L))
-        self.ToICUD = np.zeros((T - 1, A, L))
-        self.ToIYD = np.zeros((T - 1, A, L))
-        self.ToIA = np.zeros((T - 1, A, L))
-        self.ToIY = np.zeros((T - 1, A, L))
-
-        self._S = np.zeros((step_size + 1, A, L), dtype=types)
-        self._E = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IA = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IY = np.zeros((step_size + 1, A, L), dtype=types)
-        self._PA = np.zeros((step_size + 1, A, L), dtype=types)
-        self._PY = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IH = np.zeros((step_size + 1, A, L), dtype=types)
-        self._ICU = np.zeros((step_size + 1, A, L), dtype=types)
-        self._R = np.zeros((step_size + 1, A, L), dtype=types)
-        self._D = np.zeros((step_size + 1, A, L), dtype=types)
         self._IYIH = np.zeros((step_size, A, L))
         self._IYICU = np.zeros((step_size, A, L))
         self._IHICU = np.zeros((step_size, A, L))
@@ -438,29 +328,12 @@ class Vaccine_group:
             Update efficacy according to delta variant (VoC) prevelance.
         '''
 
-        # if self.v_name == "v_2":
-        #    print("Delta Update")
-        #    print(self.v_beta_reduct)
-        #    print(prev)
-        # print(self.v_tau_reduct)
-
         self.v_beta_reduct = self.v_beta_reduct * (1 - prev) + self.v_beta_reduct_delta * prev #decreased efficacy against infection.
         self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + self.v_tau_reduct_delta * prev #decreased efficacy against symptomatic infection.
-
-        # print(self.v_beta_reduct)
-        # print(self.v_tau_reduct)
-        # print("~~~~~~~~~~~~~~~~~~~~")
 
     def omicron_update(self, prev):
         '''
             Update efficacy according to omicron variant (VoC) prevelance.
         '''
 
-        # print("Omicron Update")
-        # print(self.v_tau_reduct)
-
         self.v_tau_reduct = self.v_tau_reduct * (1 - prev) + self.v_tau_reduct_omicron * prev
-        #breakpoint()
-
-        # print(self.v_tau_reduct)
-        # print("~~~~~~~~~~~~~~~~~~~~")

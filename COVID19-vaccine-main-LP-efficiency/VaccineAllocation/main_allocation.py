@@ -69,30 +69,6 @@ if __name__ == '__main__':
     elif tiers.tier_type == 'linear':
         if given_threshold is not None:
             selected_policy = MTP.linear_policy(instance, tiers.tier, given_threshold, given_date, args.gs, tiers.community_transmision)
-
-    # need to figure out where to specify this
-    # T = 100
-
-    # if a vaccine allocation is given, then it carries out a specific task
-    # if not, then search for a policy
-    selected_vaccine_policy = None
-    if given_vaccine_policy_no is not False:
-        if given_vaccine_policy_no == 0:
-            selected_vaccine_policy = VAP.high_risk_senior_first_vaccine_policy(instance, vaccines)
-        elif given_vaccine_policy_no == 1:
-            selected_vaccine_policy = VAP.senior_first_vaccine_policy(instance, vaccines)
-        elif given_vaccine_policy_no == 2:
-            selected_vaccine_policy = VAP.min_death_vaccine_policy(instance, vaccines)
-        elif given_vaccine_policy_no == 3:
-            selected_vaccine_policy = VAP.min_infected_vaccine_policy(instance, vaccines)
-        elif given_vaccine_policy_no == 4:
-            selected_vaccine_policy = VAP.sort_contact_matrix_vaccine_policy(instance, vaccines)
-        elif given_vaccine_policy_no == 5:
-            selected_vaccine_policy = VAP.no_vaccine_policy(instance, vaccines, 'deterministic')
-        elif given_vaccine_policy_no == 6:
-            selected_vaccine_policy = VAP.phase_1b_policy(instance, vaccines, args.percentage)
-        elif given_vaccine_policy_no == 7:
-            selected_vaccine_policy = VAP.vaccine_policy(instance, vaccines)
             
     task_str = str(selected_policy) if selected_policy is not None else f'opt{len(tiers.tier)}'
     instance_name = f'{args.f_config[:-5]}_{args.t[:-5]}_{task_str}_{args.tr}_{args.f}'
@@ -111,7 +87,7 @@ if __name__ == '__main__':
                           instance_name=instance_name,
                           policy_class=tiers.tier_type,
                           policy=selected_policy,
-                          vaccine_policy=selected_vaccine_policy,
+                          vaccine_policy=None,
                           mp_pool=mp_pool,
                           crn_seeds=train_seeds,
                           unique_seeds_ori=test_seeds,
