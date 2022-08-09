@@ -11,6 +11,17 @@ header-includes:
 
 ## Notes on Original Code
 
+- Potential bug regarding omicron update (I emailed Nazlican to ask)
+  - See ```SEIYAHRD.py```'s ```simulate_t``` function
+  ```{}
+              #Update epi parameters for omicron:     
+            T_omicron = np.where(np.array(v_policy._instance.cal.calendar) == instance.omicron_start)[0][0]
+            if t >= T_omicron:
+                epi.omicron_update_param(instance.omicron_prev[t - T_omicron])
+                for v_groups in v_policy._vaccine_groups:
+                    v_groups.omicron_update(instance.delta_prev[t - T_delta])
+  ```
+
 - Important inconsistency:
   - The ```delta_update``` and ```omicron_update``` methods in the ```Vaccine_group``` class (in ```vaccine_params.py```) update ```v_beta_reduct``` and ```v_tau_reduct``` for each vaccine group \textit{in place}. Vaccine groups do not get reset within a replication. The value of ```v_beta_reduct``` at time $t+1$ is computed based on its value in the previous time period $t$. 
   - The ```delta_update_param``` and ```omicron_update_param``` methods in the ```EpiSetup``` class (in ```epi_params.py```) update lots of parameters, also \textit{in place}. However, between each timepoint within a replication, the ```EpiSetup``` instance essentially gets reset. See ```epi = copy.deepcopy(epi_rand)``` call within the ```simulate_t``` function. The value of each updated parameter at time $t+1$ is computed based on its \textit{original value} at time $0$.

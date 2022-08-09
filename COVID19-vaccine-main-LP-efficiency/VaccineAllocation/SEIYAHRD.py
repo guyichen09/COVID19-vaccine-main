@@ -35,26 +35,20 @@ class SimulationReplication:
         self.instance = instance
         self.vaccine = vaccine
         self.rng_seed = rng_seed
+        self.types = "float"
+        self.step_size = config["step_size"]
+
         self.define_epi()
         self.define_groups()
-        self.step_size = config["step_size"]
-        self.types = "float"
+
+        self.age_risk_matrix_shape = (self.instance.A, self.instance.L)
+
+        self.ICU_history = [np.zeros(self.age_risk_matrix_shape, dtype=self.types)]
+        self.IH_history = [np.zeros(self.age_risk_matrix_shape, dtype=self.types)]
 
     def define_epi(self):
 
-        # # Compartments
-        # if config['det_history']:
-        #     types = 'float'
-        # else:
-        #     types = 'int' if seed >= 0 else 'float'
-
-        types = "float"
-
-        # Random stream for stochastic simulations
-        if config["det_param"]:
-            self.rng_generator = None
-        else:
-            self.rng_generator = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
+        self.rng_generator = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
 
         epi = self.instance.epi
         epi_orig = copy.deepcopy(epi)
@@ -126,35 +120,32 @@ class SimulationReplication:
 
     def simulate_time_period(self, time_start, time_end, data):
 
-        T, A, L = self.instance.T, self.instance.A, self.instance.L
-        N = self.instance.N
-
-        for t in range(T - 1):
+        for t in range(time_start, time_end):
 
             self.simulate_t(t)
 
-            self.S = np.zeros((A, L), dtype=self.types)
-            self.E = np.zeros((A, L), dtype=self.types)
-            self.IA = np.zeros((A, L), dtype=self.types)
-            self.IY = np.zeros((A, L), dtype=self.types)
-            self.PA = np.zeros((A, L), dtype=self.types)
-            self.PY = np.zeros((A, L), dtype=self.types)
-            self.R = np.zeros((A, L), dtype=self.types)
-            self.D = np.zeros((A, L), dtype=self.types)
+            self.S = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.E = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.IA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.IY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.PA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.PY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.R = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.D = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
 
-            self.IH = np.zeros((T, A, L), dtype=self.types)
-            self.ICU = np.zeros((T, A, L), dtype=self.types)
+            self.IH = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.ICU = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
 
             # Additional tracking variables (for triggers)
-            self.IYIH = np.zeros((A, L))
-            self.IYICU = np.zeros((A, L))
-            self.IHICU = np.zeros((A, L))
-            self.ToICU = np.zeros((A, L))
-            self.ToIHT = np.zeros((A, L))
-            self.ToICUD = np.zeros((A, L))
-            self.ToIYD = np.zeros((A, L))
-            self.ToIA = np.zeros((A, L))
-            self.ToIY = np.zeros((A, L))
+            self.IYIH = np.zeros(self.age_risk_matrix_shape)
+            self.IYICU = np.zeros(self.age_risk_matrix_shape)
+            self.IHICU = np.zeros(self.age_risk_matrix_shape)
+            self.ToICU = np.zeros(self.age_risk_matrix_shape)
+            self.ToIHT = np.zeros(self.age_risk_matrix_shape)
+            self.ToICUD = np.zeros(self.age_risk_matrix_shape)
+            self.ToIYD = np.zeros(self.age_risk_matrix_shape)
+            self.ToIA = np.zeros(self.age_risk_matrix_shape)
+            self.ToIY = np.zeros(self.age_risk_matrix_shape)
 
             for v_group in self.vaccine_groups:
 
@@ -181,24 +172,19 @@ class SimulationReplication:
                 self.ToIA += v_group.ToIA
                 self.ToIY += v_group.ToIY
 
-            total_imbalance = np.sum(self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH[t+1] + self.ICU[t+1]) - np.sum(N)
+            self.ICU_history.append(self.ICU)
+            self.IH_history.append(self.IH)
 
-            assert np.abs(total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {calendar.calendar[t]}, {t}'
+            total_imbalance = np.sum(self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU) - np.sum(self.instance.N)
+
+            assert np.abs(total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {calendar[t]}, {t}'
 
     def simulate_t(self, t_date):
 
         A, L = self.instance.A, self.instance.L
         N = self.instance.N
 
-        calendar = self.instance.cal
-
-        # # Compartments
-        # if config['det_history']:
-        #     types = 'float'
-        # else:
-        #     types = 'int' if seed >= 0 else 'float'
-
-        types = "float"
+        calendar = self.instance.cal.calendar
 
         for t_idx in range(1):
             t = t_date
@@ -214,44 +200,37 @@ class SimulationReplication:
             self.epi = copy.deepcopy(self.epi_rand)
 
             if t < len(self.instance.real_hosp):
-                phi_t = self.epi.effective_phi(calendar.schools_closed[t],
-                                       calendar.fixed_cocooning[t],
-                                       calendar.fixed_transmission_reduction[t],
+                phi_t = self.epi.effective_phi(self.instance.cal.schools_closed[t],
+                                       self.instance.cal.fixed_cocooning[t],
+                                       self.instance.cal.fixed_transmission_reduction[t],
                                        N / N.sum(),
-                                       calendar.get_day_type(t))
+                                       self.instance.cal.get_day_type(t))
             # NEED TO DELETE THIS THIS IS JUST TO MAKE IT WORK FOR PAST HISTORICAL PERIOD
             else:
-                phi_t = self.epi.effective_phi(calendar.schools_closed[len(self.instance.real_hosp) - 1],
-                                       calendar.fixed_cocooning[len(self.instance.real_hosp) - 1],
-                                       calendar.fixed_transmission_reduction[len(self.instance.real_hosp) - 1],
+                phi_t = self.epi.effective_phi(self.instance.cal.schools_closed[len(self.instance.real_hosp) - 1],
+                                       self.instance.cal.fixed_cocooning[len(self.instance.real_hosp) - 1],
+                                       self.instance.cal.fixed_transmission_reduction[len(self.instance.real_hosp) - 1],
                                        N / N.sum(),
-                                       calendar.get_day_type(len(self.instance.real_hosp)))
+                                       self.instance.cal.get_day_type(len(self.instance.real_hosp)))
 
-            #Update epi parameters for delta prevalence:
-            T_delta = np.where(np.array(calendar.calendar) == self.instance.delta_start)[0]
-            if len(T_delta) > 0:
-                T_delta = T_delta[0]
-                if t >= T_delta:
-                    for v_groups in self.vaccine_groups:
-                        v_groups.delta_update(self.instance.delta_prev[t - T_delta])
-                    self.epi.delta_update_param(self.instance.delta_prev[t - T_delta])
+            if calendar[t] >= self.instance.delta_start:
+                days_since_delta_start = (calendar[t] - self.instance.delta_start).days
+                for v_groups in self.vaccine_groups:
+                    v_groups.delta_update(self.instance.delta_prev[days_since_delta_start])
+                self.epi.delta_update_param(self.instance.delta_prev[days_since_delta_start])
 
             #Update epi parameters for omicron:
-            T_omicron = np.where(np.array(calendar.calendar) == self.instance.omicron_start)[0]
-            if len(T_omicron) > 0:
-                T_omicron = T_omicron[0]
-                if t >= T_omicron:
-                    self.epi.omicron_update_param(self.instance.omicron_prev[t - T_omicron])
-                    for v_groups in self.vaccine_groups:
-                        v_groups.omicron_update(self.instance.delta_prev[t - T_delta])
+            if calendar[t] >= self.instance.omicron_start:
+                days_since_omicron_start = (calendar[t] - self.instance.omicron_start).days
+                self.epi.omicron_update_param(self.instance.omicron_prev[days_since_omicron_start])
+                for v_groups in self.vaccine_groups:
+                    v_groups.omicron_update(self.instance.delta_prev[days_since_delta_start])
 
             # Assume an imaginary new variant in May, 2022:
             if self.epi.new_variant == True:
-                T_variant = np.where(np.array(calendar.calendar) == self.instance.variant_start)[0]
-                if len(T_variant) > 0:
-                    T_variant = T_variant[0]
-                    if t >= T_variant:
-                        self.epi.variant_update_param(self.instance.variant_prev[t - T_variant])
+                days_since_variant_start = (calendar[t] - self.instance.variant_start).days
+                if calendar[t] >= self.instance.variant_start:
+                    self.epi.variant_update_param(self.instance.variant_prev[days_since_variant_start])
 
             if self.instance.otherInfo == {}:
                 if t > kwargs["rd_start"] and t <= kwargs["rd_end"]:
@@ -260,7 +239,6 @@ class SimulationReplication:
                 self.epi.update_icu_all(t,self.instance.otherInfo)
 
             rate_E = discrete_approx(self.epi.sigma_E, self.step_size)
-            # print(self.epi.sigma_E, rate_E)
 
             rate_IYR = discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * (1 - self.epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
             rate_IYD = discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * self.epi.alpha4 for l in range(L)] for a in range(A)]), self.step_size)
@@ -382,8 +360,8 @@ class SimulationReplication:
                 v_groups.R = v_groups._R[self.step_size].copy()
                 v_groups.D = v_groups._D[self.step_size].copy()
 
-                v_groups.IH[t + 1] = v_groups._IH[self.step_size].copy()
-                v_groups.ICU[t + 1] = v_groups._ICU[self.step_size].copy()
+                v_groups.IH = v_groups._IH[self.step_size].copy()
+                v_groups.ICU = v_groups._ICU[self.step_size].copy()
 
                 v_groups.IYIH = v_groups._IYIH.sum(axis=0)
                 v_groups.IYICU = v_groups._IYICU.sum(axis=0)
@@ -395,7 +373,7 @@ class SimulationReplication:
                 v_groups.ToIY = v_groups._ToIY.sum(axis=0)
                 v_groups.ToIA = v_groups._ToIA.sum(axis=0)
 
-            if t == T_omicron:
+            if calendar[t] == self.instance.omicron_start:
                 # Move almost half of the people from recovered to susceptible:
                 self.immune_escape(self.epi.immune_escape_rate, t)
 
@@ -408,30 +386,30 @@ class SimulationReplication:
 
                 for idx, v_groups in enumerate(self.vaccine_groups):
 
-                    out_sum = np.zeros((A, L))
+                    out_sum = np.zeros(self.age_risk_matrix_shape)
                     S_out = np.zeros((A*L, 1))
                     N_out = np.zeros((A*L, 1))
 
                     for vaccine_type in v_groups.v_out:
-                        event = self.vaccine.event_lookup(vaccine_type, calendar.calendar[t])
+                        event = self.vaccine.event_lookup(vaccine_type, calendar[t])
 
                         if event is not None:
 
                             S_out = np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
-                            if t >= T_omicron:
+                            if calendar[t] >= self.instance.omicron_start:
                                 if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
                                     S_out = self.epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            N_out = self.vaccine.get_num_eligible(N, A * L, v_groups.v_name, v_groups.v_in, v_groups.v_out, calendar.calendar[t])
+                            N_out = self.vaccine.get_num_eligible(N, A * L, v_groups.v_name, v_groups.v_in, v_groups.v_out, calendar[t])
 
-                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
+                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape(self.age_risk_matrix_shape)
 
                             if self.types == 'int':
                                 out_sum += np.round(ratio_S_N*v_groups._S[self.step_size])
                             else:
                                 out_sum += ratio_S_N*v_groups._S[self.step_size]
 
-                    in_sum = np.zeros((A, L))
+                    in_sum = np.zeros(self.age_risk_matrix_shape)
                     S_in = np.zeros((A*L, 1))
                     N_in = np.zeros((A*L, 1))
 
@@ -441,17 +419,17 @@ class SimulationReplication:
                             if v_g.v_name == self.vaccine.vaccine_allocation[vaccine_type][0]["from"]:
                                 v_temp = v_g
 
-                        event = self.vaccine.event_lookup(vaccine_type, calendar.calendar[t])
+                        event = self.vaccine.event_lookup(vaccine_type, calendar[t])
 
                         if event is not None:
                             S_in = np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            if t >= T_omicron:
+                            if calendar[t] >= self.instance.omicron_start:
                                 if (v_groups.v_name == "v_3" and v_temp.v_name == "v_2") or (v_groups.v_name == "v_2" and v_temp.v_name == "v_1"):
                                     S_in = self.epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            N_in = self.vaccine.get_num_eligible(N, A * L, v_temp.v_name, v_temp.v_in, v_temp.v_out, calendar.calendar[t])
-                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
+                            N_in = self.vaccine.get_num_eligible(N, A * L, v_temp.v_name, v_temp.v_in, v_temp.v_out, calendar[t])
+                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape(self.age_risk_matrix_shape)
 
                             if self.types == 'int':
                                 in_sum += np.round(ratio_S_N*v_temp._S[self.step_size])
@@ -472,7 +450,7 @@ class SimulationReplication:
 
                 imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
 
-                assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {calendar.calendar[t]}, {t}'
+                assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {calendar[t]}, {t}'
 
             for idx, v_groups in enumerate(self.vaccine_groups):
                 v_groups._S = np.zeros((self.step_size + 1, A, L), dtype=self.types)
@@ -505,8 +483,8 @@ class SimulationReplication:
                 v_groups._R[0] = v_groups.R
                 v_groups._D[0] = v_groups.D
 
-                v_groups._IH[0] = v_groups.IH[t + 1].copy()
-                v_groups._ICU[0] = v_groups.ICU[t + 1].copy()
+                v_groups._IH[0] = v_groups.IH
+                v_groups._ICU[0] = v_groups.ICU
 
     def rv_gen(self, n, p, round_opt=1):
 

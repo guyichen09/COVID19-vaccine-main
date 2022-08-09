@@ -270,8 +270,8 @@ class VaccineGroup:
         self.R = np.zeros((A, L), dtype=types)
         self.D = np.zeros((A, L), dtype=types)
 
-        self.IH = np.zeros((T, A, L), dtype=types)
-        self.ICU = np.zeros((T, A, L), dtype=types)
+        self.IH = np.zeros((A, L), dtype=types)
+        self.ICU = np.zeros((A, L), dtype=types)
 
         self.IYIH = np.zeros((A, L))
         self.IYICU = np.zeros((A, L))
@@ -320,8 +320,8 @@ class VaccineGroup:
         self._R[0] = self.R
         self._D[0] = self.D
 
-        self._IH[0] = self.IH[0].copy()
-        self._ICU[0] = self.ICU[0].copy()
+        self._IH[0] = self.IH
+        self._ICU[0] = self.ICU
 
     def delta_update(self, prev):
         '''
