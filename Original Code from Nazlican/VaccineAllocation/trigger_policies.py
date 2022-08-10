@@ -305,7 +305,7 @@ class CDCTierPolicy():
         self.set_surge_history(self._surge_history_copy)
         
     def compute_cost(self):
-        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history if i is not None and i in range(self._n))
+        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history[783:] if i is not None and i in range(self._n))
     
     def get_tier_history(self):
         return self._tier_history
@@ -517,7 +517,7 @@ class MultiTierPolicy():
         self.set_intervention_history(self._intervention_history_copy)
     
     def compute_cost(self):
-        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history if i is not None and i in range(self._n))
+        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history[783:] if i is not None and i in range(self._n))
     
     def get_tier_history(self):
         return self._tier_history
@@ -581,6 +581,9 @@ class MultiTierPolicy():
         moving_avg_start = np.maximum(0, t - config['moving_avg_len'])
         criStat_total = ToIHT.sum((1, 2))
         criStat_avg = criStat_total[moving_avg_start:].mean()
+
+        # if t > 783:
+        #    print(criStat_avg)
         
         # Compute new cases per 100k:
         if len(ToIY) > 0:
@@ -709,7 +712,7 @@ class MultiTierPolicy_ACS():
         self.set_intervention_history(self._intervention_history_copy)
     
     def compute_cost(self):
-        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history if i is not None and i in range(self._n))
+        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history[783:] if i is not None and i in range(self._n))
     
     def get_tier_history(self):
         return self._tier_history

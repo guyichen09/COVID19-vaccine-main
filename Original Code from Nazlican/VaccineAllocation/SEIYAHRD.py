@@ -296,6 +296,8 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
             k_t =  policy._intervention_history[t]
             phi_t = interventions[k_t].phi(calendar.get_day_type(t))
 
+            # print(np.sum(phi_t))
+
             # if the current time is within the history
             if config['det_history'] and t < len(instance.real_hosp):
                 epi = copy.deepcopy(epi_orig)

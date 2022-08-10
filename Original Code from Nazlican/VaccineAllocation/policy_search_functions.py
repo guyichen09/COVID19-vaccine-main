@@ -177,7 +177,7 @@ def trigger_policy_search(instance,
                    # breakpoint()
                     # Simulate n=chunksize samples of policy_i
 
-                    start = time.time()
+                    # start = time.time()
                     out_sample_configs = stoch_simulation_iterator(instance,
                                                                    vaccines,
                                                                    policy_i,
@@ -191,7 +191,7 @@ def trigger_policy_search(instance,
                                                                    **kwargs_out) 
                     
                     out_sample_outputs = simulate_p(mp_pool, out_sample_configs)
-                    print(time.time() - start)
+                    print(time.time())
 
                     # Eliminate invalid samples according to R-squared. Invalid samples are those that
                     # deviate from recent hospitalization data
@@ -200,6 +200,10 @@ def trigger_policy_search(instance,
                     # if crn_seeds == []:
                         for sample_ij in out_sample_outputs:
                             sim_j, cost_j, policy_j, _vac_policy, seed_j, kwargs_j = sample_ij
+                            print(cost_j)
+                            print(policy_j)
+
+                            breakpoint()
 
                             # LP
                             infeasible_cap_field = {"ICU": instance.icu,

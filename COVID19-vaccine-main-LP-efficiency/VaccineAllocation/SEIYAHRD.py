@@ -13,6 +13,8 @@ from vaccine_params import VaccineGroup
 from VaccineAllocation import config
 import copy
 
+
+
 class SimulationReplication:
     '''
     Simulates an SIR-type model with seven compartments, multiple age groups,
@@ -30,7 +32,7 @@ class SimulationReplication:
         S-E, E-IY, E-IA, IY-IH, IY-R, IA-R, IH-R, IH-ICU, ICU-D, ICU-R
     '''
 
-    def __init__(self, instance, vaccine, rng_seed):
+    def __init__(self, instance, vaccine, policy, rng_seed):
 
         self.instance = instance
         self.vaccine = vaccine
@@ -45,6 +47,11 @@ class SimulationReplication:
 
         self.ICU_history = [np.zeros(self.age_risk_matrix_shape, dtype=self.types)]
         self.IH_history = [np.zeros(self.age_risk_matrix_shape, dtype=self.types)]
+
+        self.ToIHT_history = []
+        self.ToIY_history = []
+
+        self.policy = policy
 
     def define_epi(self):
 
@@ -166,14 +173,18 @@ class SimulationReplication:
                 self.IYICU += v_group.IYICU
                 self.IHICU += v_group.IHICU
                 self.ToICU += v_group.ToICU
-                self.ToIHT += v_group.ToIHT
                 self.ToIYD += v_group.ToIYD
                 self.ToICUD += v_group.ToICUD
                 self.ToIA += v_group.ToIA
+
+                self.ToIHT += v_group.ToIHT
                 self.ToIY += v_group.ToIY
 
             self.ICU_history.append(self.ICU)
             self.IH_history.append(self.IH)
+
+            self.ToIHT_history.append(self.ToIHT)
+            self.ToIY_history.append(self.ToIY)
 
             total_imbalance = np.sum(self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU) - np.sum(self.instance.N)
 
@@ -205,13 +216,17 @@ class SimulationReplication:
                                        self.instance.cal.fixed_transmission_reduction[t],
                                        N / N.sum(),
                                        self.instance.cal.get_day_type(t))
-            # NEED TO DELETE THIS THIS IS JUST TO MAKE IT WORK FOR PAST HISTORICAL PERIOD
             else:
-                phi_t = self.epi.effective_phi(self.instance.cal.schools_closed[len(self.instance.real_hosp) - 1],
-                                       self.instance.cal.fixed_cocooning[len(self.instance.real_hosp) - 1],
-                                       self.instance.cal.fixed_transmission_reduction[len(self.instance.real_hosp) - 1],
+                #  ToIHT, IH, ToIY, ICU
+                self.policy(t, self.ToIHT_history, self.IH_history, self.ToIY_history, self.ICU_history)
+                current_tier = self.policy._tier_history[t]
+                phi_t = self.epi.effective_phi(self.policy.tiers[current_tier]["school_closure"],
+                                       self.policy.tiers[current_tier]["cocooning"],
+                                       self.policy.tiers[current_tier]["transmission_reduction"],
                                        N / N.sum(),
-                                       self.instance.cal.get_day_type(len(self.instance.real_hosp)))
+                                       self.instance.cal.get_day_type(t))
+
+            # print(np.sum(phi_t))
 
             if calendar[t] >= self.instance.delta_start:
                 days_since_delta_start = (calendar[t] - self.instance.delta_start).days

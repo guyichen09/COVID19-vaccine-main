@@ -54,17 +54,17 @@ def LP_trigger_policy_search(instance,
 
     selected_vaccine_policy = vaccine_policy
     # Build an iterator of all the candidate trigger policies (with given fixed vaccine policy) to be simulated by simulate_p
-    tier_policies, random_seed, kwargs = policy_multi_iterator(instance,
-                                        tiers,
-                                        vaccines,
-                                        obj_func,
-                                        interventions_train,
-                                        policy_class=policy_class,
-                                        community_transmision=community_transmision,
-                                        fixed_policy=policy,
-                                        fixed_vaccine_policy=selected_vaccine_policy,
-                                        policy_field=policy_field,
-                                        policy_ub=policy_ub)
+    # tier_policies, random_seed, kwargs = policy_multi_iterator(instance,
+    #                                     tiers,
+    #                                     vaccines,
+    #                                     obj_func,
+    #                                     interventions_train,
+    #                                     policy_class=policy_class,
+    #                                     community_transmision=community_transmision,
+    #                                     fixed_policy=policy,
+    #                                     fixed_vaccine_policy=selected_vaccine_policy,
+    #                                     policy_field=policy_field,
+    #                                     policy_ub=policy_ub)
 
     # selected_vaccine_policy_copy = copy.deepcopy(selected_vaccine_policy)
 
@@ -72,23 +72,34 @@ def LP_trigger_policy_search(instance,
 
     # output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
 
-    start = time.time()
-    test = SimulationReplication(instance, vaccines, 100)
+    # start = time.time()
+
+
+    # mt_policy = MultiTierPolicy(instance, tiers, thrs, policy_class, community_transmision)
+
+    mtp = MultiTierPolicy.constant_policy(instance, tiers, [-1,5,15,30,50], "green")
+
+    test = SimulationReplication(instance, vaccines, mtp, 100)
+
+
+
     test.simulate_time_period(0,100,None)
-    test.simulate_time_period(100, 783, None)
+    test.simulate_time_period(100,500,None)
 
-    print(time.time() - start)
+    # print(time.time() - start)
 
-    hosp_benchmark = instance.real_hosp
-    real_hosp_end_ix = len(hosp_benchmark)
+    # hosp_benchmark = instance.real_hosp
+    # real_hosp_end_ix = len(hosp_benchmark)
+    #
+    # IH_sim = np.array(test.ICU_history) + np.array(test.IH_history)
+    # IH_sim = IH_sim.sum(axis=(2, 1))
+    # IH_sim = IH_sim[:real_hosp_end_ix]
+    #
+    # f_benchmark = hosp_benchmark
+    # rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+    # print(rsq)
 
-    IH_sim = np.array(test.ICU_history) + np.array(test.IH_history)
-    IH_sim = IH_sim.sum(axis=(2, 1))
-    IH_sim = IH_sim[:real_hosp_end_ix]
-
-    f_benchmark = hosp_benchmark
-    rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
-    print(rsq)
+    # breakpoint()
 
     # print(test)
 

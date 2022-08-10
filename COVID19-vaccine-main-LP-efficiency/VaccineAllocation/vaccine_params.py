@@ -254,62 +254,63 @@ class VaccineGroup:
             self.v_in = ('v_wane',)
             self.v_out = ('v_booster',)
 
-        T, A, L = instance.T, instance.A, instance.L
+        self.N = instance.N
+        self.I0 = instance.I0
+        self.A = instance.A
+        self.L = instance.L
+        self.age_risk_matrix_shape = (self.A, self.L)
+        self.types = "float"
+
         step_size = config['step_size']
 
-        # types = 'int' if problem_type == 'stochastic' else 'float'
-        types = "float"
-        #breakpoint()
+        self.S = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.E = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.IA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.IY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.PA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.PY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.R = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.D = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
 
-        self.S = np.zeros((A, L), dtype=types)
-        self.E = np.zeros((A, L), dtype=types)
-        self.IA = np.zeros((A, L), dtype=types)
-        self.IY = np.zeros((A, L), dtype=types)
-        self.PA = np.zeros((A, L), dtype=types)
-        self.PY = np.zeros((A, L), dtype=types)
-        self.R = np.zeros((A, L), dtype=types)
-        self.D = np.zeros((A, L), dtype=types)
+        self.IH = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.ICU = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
 
-        self.IH = np.zeros((A, L), dtype=types)
-        self.ICU = np.zeros((A, L), dtype=types)
+        self.IYIH = np.zeros(self.age_risk_matrix_shape)
+        self.IYICU = np.zeros(self.age_risk_matrix_shape)
+        self.IHICU = np.zeros(self.age_risk_matrix_shape)
+        self.ToICU = np.zeros(self.age_risk_matrix_shape)
+        self.ToIHT = np.zeros(self.age_risk_matrix_shape)
+        self.ToICUD = np.zeros(self.age_risk_matrix_shape)
+        self.ToIYD = np.zeros(self.age_risk_matrix_shape)
+        self.ToIA = np.zeros(self.age_risk_matrix_shape)
+        self.ToIY = np.zeros(self.age_risk_matrix_shape)
 
-        self.IYIH = np.zeros((A, L))
-        self.IYICU = np.zeros((A, L))
-        self.IHICU = np.zeros((A, L))
-        self.ToICU = np.zeros((A, L))
-        self.ToIHT = np.zeros((A, L))
-        self.ToICUD = np.zeros((A, L))
-        self.ToIYD = np.zeros((A, L))
-        self.ToIA = np.zeros((A, L))
-        self.ToIY = np.zeros((A, L))
+        self._S = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._E = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._IA = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._IY = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._PA = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._PY = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._IH = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._ICU = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._R = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
+        self._D = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
 
-        self._S = np.zeros((step_size + 1, A, L), dtype=types)
-        self._E = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IA = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IY = np.zeros((step_size + 1, A, L), dtype=types)
-        self._PA = np.zeros((step_size + 1, A, L), dtype=types)
-        self._PY = np.zeros((step_size + 1, A, L), dtype=types)
-        self._IH = np.zeros((step_size + 1, A, L), dtype=types)
-        self._ICU = np.zeros((step_size + 1, A, L), dtype=types)
-        self._R = np.zeros((step_size + 1, A, L), dtype=types)
-        self._D = np.zeros((step_size + 1, A, L), dtype=types)
-
-        self._IYIH = np.zeros((step_size, A, L))
-        self._IYICU = np.zeros((step_size, A, L))
-        self._IHICU = np.zeros((step_size, A, L))
-        self._ToICU = np.zeros((step_size, A, L))
-        self._ToIHT = np.zeros((step_size, A, L))
-        self._ToICUD = np.zeros((step_size, A, L))
-        self._ToIYD = np.zeros((step_size, A, L))
-        self._ToIA = np.zeros((step_size, A, L))
-        self._ToIY = np.zeros((step_size, A, L))
+        self._IYIH = np.zeros((step_size, self.A, self.L))
+        self._IYICU = np.zeros((step_size, self.A, self.L))
+        self._IHICU = np.zeros((step_size, self.A, self.L))
+        self._ToICU = np.zeros((step_size, self.A, self.L))
+        self._ToIHT = np.zeros((step_size, self.A, self.L))
+        self._ToICUD = np.zeros((step_size, self.A, self.L))
+        self._ToIYD = np.zeros((step_size, self.A, self.L))
+        self._ToIA = np.zeros((step_size, self.A, self.L))
+        self._ToIY = np.zeros((step_size, self.A, self.L))
 
         if self.v_name == 'v_0':
-            N, I0 = instance.N, instance.I0
             # Initial Conditions (assumed)
-            self.PY = I0
+            self.PY = self.I0
             self.R = 0
-            self.S = N - self.PY - self.IY
+            self.S = self.N - self.PY - self.IY
 
         self._S[0] = self.S
         self._E[0] = self.E
