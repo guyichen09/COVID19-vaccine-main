@@ -134,7 +134,7 @@ def build_multi_tier_policy_candidates(instance, tiers, threshold_type='constant
     else:
         raise NotImplementedError
     
-class MultiTierPolicy():
+class MultiTierPolicy:
     '''
         A multi-tier policy allows for multiple tiers of lock-downs.
         Attrs:
@@ -158,82 +158,19 @@ class MultiTierPolicy():
         self.tiers = tiers
         self.tier_type = tier_type
         self.community_tranmission = community_tranmission
-        self.lockdown_thresholds = tuple(lockdown_thresholds)
-        
-        self._n = len(self.tiers)
-        self._tier_history = None
-        self._intervention_history = None
+        self.lockdown_thresholds = lockdown_thresholds
+
+        self.tier_history = None
         self._instance = instance
-        self.red_counter = 0
-    
-    @classmethod
-    def constant_policy(cls, instance, tiers, constant_thresholds, community_tranmission):
-        T = instance.T
-        # lockdown_thresholds = [[ct] * T for ct in constant_thresholds]
-        return cls(instance, tiers, constant_thresholds, 'constant', community_tranmission)
-    
-    @classmethod
-    def step_policy(cls, instance, tiers, constant_thresholds, change_date, community_tranmission):
-        lockdown_thresholds = []
-        for tier_ix, tier in enumerate(tiers):
-            tier_thres = []
-            for t, d in enumerate(instance.cal.calendar):
-                if d < change_date:
-                    tier_thres.append(constant_thresholds[0][tier_ix])
-                else:
-                    tier_thres.append(constant_thresholds[1][tier_ix])
-            lockdown_thresholds.append(tier_thres)
-        return cls(instance, tiers, lockdown_thresholds, 'step', community_tranmission)
-    
-    @classmethod
-    def linear_policy(cls, instance, tiers, constant_thresholds, change_date, slope, community_tranmission):
-        '''
-        Linear threshold funtion.
-        Parameters
-        ----------
-        constant_thresholds : the slope of the linear function. 
-        change_date : The date the threshold starts to increase.   
-        slope : The slope of the linear function.
-        -------
-        '''
-        T = len(instance.cal)
-        T_slope_start = np.where(np.array(instance.cal.calendar) == change_date)[0][0]
-        T_slope = T - T_slope_start
-       # The lower bound for green will be constant at -1:
-        lockdown_thresholds = [[constant_thresholds[0]] * T]
-        # The lower bound will be increasing for other stages:
-        lockdown_thresholds += [[constant_thresholds[i]] * T_slope_start + \
-                                [constant_thresholds[i] + (slope) * (t + 1) for t in range(T_slope)] 
-                                for i in range(1,len(constant_thresholds))]
-            
-        return cls(instance, tiers, lockdown_thresholds, 'linear', community_tranmission)
-    
-    def set_tier_history(self, history):
-        # Set history and saves a copy to reset
-        self._tier_history = history.copy()
-        self._tier_history_copy = history.copy()
         
-    def reset_history(self):
-        # reset history so that a new simulation can be excecuted
-        self.set_tier_history(self._tier_history_copy)
+    def reset_tier_history(self):
+        self.tier_history = None
     
     def compute_cost(self):
-        return sum(self.tiers[i]['daily_cost'] for i in self._tier_history if i is not None and i in range(self._n))
-    
-    def get_tier_history(self):
-        return self._tier_history
+        return sum(self.tiers[i]['daily_cost'] for i in self.tier_history if i is not None and i in range(len(self.tiers)))
     
     def __repr__(self):
-        p_str = str([(self.tiers[i]['name'], self.lockdown_thresholds[i][0], self.lockdown_thresholds[i][-1])
-                     for i in range(len(self.tiers))])
-        p_str = p_str.replace(' ', '')
-        p_str = p_str.replace(',', '_')
-        p_str = p_str.replace("'", "")
-        p_str = p_str.replace('[', '')
-        p_str = p_str.replace('(', '')
-        p_str = p_str.replace(']', '')
-        p_str = p_str.replace(')', '')
-        return p_str
+        return str(self.lockdown_thresholds)
     
     def __call__(self, t, ToIHT, IH, ToIY, ICU):
         '''
@@ -247,10 +184,10 @@ class MultiTierPolicy():
         '''
         N = self._instance.N
 
-        if self._tier_history is None:
-            self._tier_history = [None for i in range(t)]
+        if self.tier_history is None:
+            self.tier_history = [None for i in range(t)]
 
-        if len(self._tier_history) > t:
+        if len(self.tier_history) > t:
             return
 
         ToIHT = np.array(ToIHT)
@@ -271,7 +208,7 @@ class MultiTierPolicy():
         else:
             ToIY_avg = 0
             
-        current_tier = self._tier_history[t-1]
+        current_tier = self.tier_history[t-1]
         T = self._instance.T
 
         # find new tier
@@ -322,9 +259,4 @@ class MultiTierPolicy():
             new_tier = current_tier
             t_end = t + 1
 
-        self._tier_history += [new_tier for i in range(t_end - t)]
-
-        if new_tier == 4:
-            self.red_counter += (t_end - t)
-        else:
-            self.red_counter = 0
+        self.tier_history += [new_tier for i in range(t_end - t)]

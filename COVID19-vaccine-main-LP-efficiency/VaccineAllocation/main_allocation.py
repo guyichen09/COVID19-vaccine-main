@@ -32,7 +32,6 @@ if __name__ == '__main__':
     from instances import load_instance, load_tiers, load_seeds, load_vaccines
     from objective_functions import multi_tier_objective
     from trigger_policies import MultiTierPolicy as MTP
-    from vaccine_policies import VaccineAllocationPolicy as VAP
     from policy_search_functions import trigger_policy_search, LP_trigger_policy_search
 
     # Parse city and get corresponding instance
@@ -79,22 +78,6 @@ if __name__ == '__main__':
 
     LP_trigger_policy_search(instance=instance,
                           tiers=tiers.tier,
-                          vaccines=vaccines,
-                          obj_func=multi_tier_objective,
-                          n_replicas_train=n_replicas_train,
-                          n_replicas_test=n_replicas_test,
-                          instance_name=instance_name,
-                          policy_class=tiers.tier_type,
-                          policy=selected_policy,
-                          vaccine_policy=None,
-                          mp_pool=mp_pool,
-                          crn_seeds=train_seeds,
-                          unique_seeds_ori=test_seeds,
-                          forcedOut_tiers=eval(args.fo),
-                          redLimit=args.rl,
-                          after_tiers=eval(args.aftert),
-                          policy_field=args.field,
-                          policy_ub=policy_ub,
-                          process_rank = rank)
+                          vaccines=vaccines)
 
     print(time.time() - start)

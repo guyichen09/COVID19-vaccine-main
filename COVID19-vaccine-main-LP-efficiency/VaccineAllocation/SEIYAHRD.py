@@ -11,9 +11,8 @@ import datetime as dt
 import numpy as np
 from vaccine_params import VaccineGroup
 from VaccineAllocation import config
+from trigger_policies import MultiTierPolicy
 import copy
-
-
 
 class SimulationReplication:
     '''
@@ -43,10 +42,11 @@ class SimulationReplication:
         self.define_epi()
         self.define_groups()
 
-        self.age_risk_matrix_shape = (self.instance.A, self.instance.L)
+        A = self.instance.A
+        L = self.instance.L
 
-        self.ICU_history = [np.zeros(self.age_risk_matrix_shape, dtype=self.types)]
-        self.IH_history = [np.zeros(self.age_risk_matrix_shape, dtype=self.types)]
+        self.ICU_history = [np.zeros((A, L), dtype=self.types)]
+        self.IH_history = [np.zeros((A, L), dtype=self.types)]
 
         self.ToIHT_history = []
         self.ToIY_history = []
@@ -131,28 +131,31 @@ class SimulationReplication:
 
             self.simulate_t(t)
 
-            self.S = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.E = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.IA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.IY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.PA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.PY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.R = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.D = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            A = self.instance.A
+            L = self.instance.L
 
-            self.IH = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-            self.ICU = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+            self.S = np.zeros((A, L), dtype=self.types)
+            self.E = np.zeros((A, L), dtype=self.types)
+            self.IA = np.zeros((A, L), dtype=self.types)
+            self.IY = np.zeros((A, L), dtype=self.types)
+            self.PA = np.zeros((A, L), dtype=self.types)
+            self.PY = np.zeros((A, L), dtype=self.types)
+            self.R = np.zeros((A, L), dtype=self.types)
+            self.D = np.zeros((A, L), dtype=self.types)
+
+            self.IH = np.zeros((A, L), dtype=self.types)
+            self.ICU = np.zeros((A, L), dtype=self.types)
 
             # Additional tracking variables (for triggers)
-            self.IYIH = np.zeros(self.age_risk_matrix_shape)
-            self.IYICU = np.zeros(self.age_risk_matrix_shape)
-            self.IHICU = np.zeros(self.age_risk_matrix_shape)
-            self.ToICU = np.zeros(self.age_risk_matrix_shape)
-            self.ToIHT = np.zeros(self.age_risk_matrix_shape)
-            self.ToICUD = np.zeros(self.age_risk_matrix_shape)
-            self.ToIYD = np.zeros(self.age_risk_matrix_shape)
-            self.ToIA = np.zeros(self.age_risk_matrix_shape)
-            self.ToIY = np.zeros(self.age_risk_matrix_shape)
+            self.IYIH = np.zeros((A, L))
+            self.IYICU = np.zeros((A, L))
+            self.IHICU = np.zeros((A, L))
+            self.ToICU = np.zeros((A, L))
+            self.ToIHT = np.zeros((A, L))
+            self.ToICUD = np.zeros((A, L))
+            self.ToIYD = np.zeros((A, L))
+            self.ToIA = np.zeros((A, L))
+            self.ToIY = np.zeros((A, L))
 
             for v_group in self.vaccine_groups:
 
@@ -192,7 +195,8 @@ class SimulationReplication:
 
     def simulate_t(self, t_date):
 
-        A, L = self.instance.A, self.instance.L
+        A = self.instance.A
+        L = self.instance.L
         N = self.instance.N
 
         calendar = self.instance.cal.calendar
@@ -219,7 +223,7 @@ class SimulationReplication:
             else:
                 #  ToIHT, IH, ToIY, ICU
                 self.policy(t, self.ToIHT_history, self.IH_history, self.ToIY_history, self.ICU_history)
-                current_tier = self.policy._tier_history[t]
+                current_tier = self.policy.tier_history[t]
                 phi_t = self.epi.effective_phi(self.policy.tiers[current_tier]["school_closure"],
                                        self.policy.tiers[current_tier]["cocooning"],
                                        self.policy.tiers[current_tier]["transmission_reduction"],
@@ -401,7 +405,7 @@ class SimulationReplication:
 
                 for idx, v_groups in enumerate(self.vaccine_groups):
 
-                    out_sum = np.zeros(self.age_risk_matrix_shape)
+                    out_sum = np.zeros((A, L))
                     S_out = np.zeros((A*L, 1))
                     N_out = np.zeros((A*L, 1))
 
@@ -417,14 +421,14 @@ class SimulationReplication:
 
                             N_out = self.vaccine.get_num_eligible(N, A * L, v_groups.v_name, v_groups.v_in, v_groups.v_out, calendar[t])
 
-                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape(self.age_risk_matrix_shape)
+                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
 
                             if self.types == 'int':
                                 out_sum += np.round(ratio_S_N*v_groups._S[self.step_size])
                             else:
                                 out_sum += ratio_S_N*v_groups._S[self.step_size]
 
-                    in_sum = np.zeros(self.age_risk_matrix_shape)
+                    in_sum = np.zeros((A, L))
                     S_in = np.zeros((A*L, 1))
                     N_in = np.zeros((A*L, 1))
 
@@ -444,7 +448,7 @@ class SimulationReplication:
                                     S_in = self.epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
                             N_in = self.vaccine.get_num_eligible(N, A * L, v_temp.v_name, v_temp.v_in, v_temp.v_out, calendar[t])
-                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape(self.age_risk_matrix_shape)
+                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
 
                             if self.types == 'int':
                                 in_sum += np.round(ratio_S_N*v_temp._S[self.step_size])
@@ -512,34 +516,10 @@ class SimulationReplication:
             else:
                 return self.rng_generator.binomial(n, p)
 
-
-def system_simulation(mp_sim_input):
-    '''
-        Simulation function that gets mapped when running simulations in parallel.
-        Args:
-            mp_sim_input (tuple):
-                instance, policy, cost_func, interventions, kwargs (as a dict)
-        Returns:
-            out_sim (dict): output of the simulation
-            policy_cost (float): evaluation of cost_func
-            policy (object): the policy used in the simulation
-            seed (int): seed used in the simulation
-            kwargs (dict): additional parameters used
-    '''
-
-    instance, policy, cost_func, interventions, thrs, seed, kwargs = mp_sim_input
-    out_sim = simulate_vaccine(instance, policy, interventions, thrs, seed, **kwargs)
-    policy_cost, cost_info = cost_func(instance, policy, out_sim, **kwargs)
-    kwargs_new = kwargs.copy()
-    kwargs_new["cost_info"] = cost_info
-    #breakpoint()
-    return out_sim, policy_cost, policy, thrs, seed, kwargs_new
-
 WEEKDAY = 1
 WEEKEND = 2
 HOLIDAY = 3
 LONG_HOLIDAY = 4
-
 
 class SimCalendar():
     '''

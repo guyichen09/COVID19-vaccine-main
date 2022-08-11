@@ -3,13 +3,11 @@ import numpy as np
 import multiprocessing as mp
 import datetime as dt
 from collections import defaultdict
-from interventions import create_intLevel, form_interventions
 from itertools import product
 from SEIYAHRD import SimulationReplication
 from trigger_policies import MultiTierPolicy
 from VaccineAllocation import config, logger, output_path
 from utils import profile_log, print_profiling_log
-from threshold_policy import run_multi_calendar, policy_multi_iterator, stoch_simulation_iterator
 from objective_functions import multi_tier_objective
 
 import iteround
@@ -20,71 +18,18 @@ import copy
 
 import time
 
-def LP_trigger_policy_search(instance,
-                  tiers,
-                  vaccines,
-                  obj_func,
-                  n_replicas_train=100,
-                  n_replicas_test=100,
-                  instance_name=None,
-                  policy_class='constant',
-                  community_transmision = "green",
-                  policy=None,
-                  vaccine_policy=None,
-                  mp_pool=None,
-                  crn_seeds=[],
-                  unique_seeds_ori=[],
-                  forcedOut_tiers=None,
-                  redLimit=1000,
-                  after_tiers=[0,1,2,3,4],
-                  policy_field="ToIHT",
-                  policy_ub=None,
-                  process_rank=0):
+def LP_trigger_policy_search(instance, tiers, vaccines):
 
-    # Set up for policy search: build interventions according to input tiers
-    fixed_TR = list(filter(None, instance.cal.fixed_transmission_reduction))
-    tier_TR = [item['transmission_reduction'] for item in tiers]
-    uniquePS = sorted(np.unique(np.append(fixed_TR, np.unique(tier_TR))))
-    sc_levels = np.unique([tier['school_closure'] for tier in tiers] + [0, 1])
-    fixed_CO = list(filter(None, instance.cal.fixed_cocooning))
-    co_levels = np.unique(np.append([tier['cocooning'] for tier in tiers], np.unique(fixed_CO)) + [0])
-    intervention_levels = create_intLevel(sc_levels, co_levels, uniquePS)
-    interventions_train = form_interventions(intervention_levels, instance.epi, instance.N)
-    t_start = len(instance.real_hosp)
+    thresholds = (-1,5,15,30,50)
 
-    selected_vaccine_policy = vaccine_policy
-    # Build an iterator of all the candidate trigger policies (with given fixed vaccine policy) to be simulated by simulate_p
-    # tier_policies, random_seed, kwargs = policy_multi_iterator(instance,
-    #                                     tiers,
-    #                                     vaccines,
-    #                                     obj_func,
-    #                                     interventions_train,
-    #                                     policy_class=policy_class,
-    #                                     community_transmision=community_transmision,
-    #                                     fixed_policy=policy,
-    #                                     fixed_vaccine_policy=selected_vaccine_policy,
-    #                                     policy_field=policy_field,
-    #                                     policy_ub=policy_ub)
-
-    # selected_vaccine_policy_copy = copy.deepcopy(selected_vaccine_policy)
-
-    # selected_vaccine_policy.reset_vaccine_history(instance, -1)
-
-    # output = simulate_vaccine(instance, selected_vaccine_policy, -1, **kwargs)
-
-    # start = time.time()
-
-
-    # mt_policy = MultiTierPolicy(instance, tiers, thrs, policy_class, community_transmision)
-
-    mtp = MultiTierPolicy.constant_policy(instance, tiers, [-1,5,15,30,50], "green")
+    mtp = MultiTierPolicy(instance, tiers, thresholds, "constant", "green")
 
     test = SimulationReplication(instance, vaccines, mtp, 100)
 
-
-
     test.simulate_time_period(0,100,None)
-    test.simulate_time_period(100,500,None)
+    test.simulate_time_period(100,945,None)
+
+    print(test.policy.compute_cost())
 
     # print(time.time() - start)
 

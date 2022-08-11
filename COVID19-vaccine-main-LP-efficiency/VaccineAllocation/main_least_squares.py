@@ -13,8 +13,6 @@ if __name__ == '__main__':
     
     from instances import load_instance, load_tiers, load_seeds, load_vaccines
     from objective_functions import multi_tier_objective
-    from vaccine_policies import MultiTierPolicy as MTP
-    from vaccine_policies import VaccineAllocationPolicy as VAP
     from least_squares_fit import run_fit
     
     # Parse city and get corresponding instance
