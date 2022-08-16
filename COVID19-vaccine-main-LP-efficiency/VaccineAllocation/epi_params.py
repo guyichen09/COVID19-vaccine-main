@@ -90,18 +90,26 @@ class EpiSetup:
                 if listDistrn:
                     tempRecord[outName] = np.array(outList)
 
+        # print(tempRecord)
+
         for k in tempRecord.keys():
             setattr(self, k, tempRecord[k])
 
+        # self._omega_E = np.array([((YHR[a] / self.Eta[a]) +
+        #                            ((1 - YHR[a]) / self._gamma_IY[a])) * self.omega_IY * self._sigma_E * self.pp /
+        #                           (1 - self.pp) for a in range(len(YHR))])
+        # omega is computed with overall hosp rate
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
                                                               (1 - self.YHR_overall[a]) / self.gamma_IY) +
                                   (1 - self.tau) * self.omega_IA / self.gamma_IA) /
                                  (self.tau * self.omega_IY +
                                   (1 - self.tau) * self.omega_IA) * self.rho_Y * self.pp / (1 - self.pp)
                                  for a in range(len(self.YHR_overall))])
-
         self.omega_PA = self.omega_IA * self.omega_P
         self.omega_PY = self.omega_IY * self.omega_P
+        # self.omega_PA = np.array([0.91117513, 0.91117513, 0.924606534, 0.957988874, 0.98451149])
+        # self.omega_PY = np.array([1.366762694, 1.366762694, 1.386909802, 1.436983311, 1.476767236])
+        # pi is computed using risk based hosp rate
         self.pi = np.array([
             self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
             for a in range(len(self.YHR))
@@ -109,10 +117,8 @@ class EpiSetup:
         self.YFR = self.IFR / self.tau
         self.HFR = self.YFR / self.YHR
         self.rIH0 = self.rIH
-
-        self.YHR_0 = self.YHR
-
-        self.YHR_overall_0 = self.YHR_overall
+        self.YHR0 = self.YHR
+        self.YHR_overall0 = self.YHR_overall
         # if gamma_IH and mu are lists, reshape them for right dimension
         if isinstance(self.gamma_IH,np.ndarray):
             self.gamma_IH = self.gamma_IH.reshape(self.gamma_IH.size,1)
@@ -134,7 +140,6 @@ class EpiSetup:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH- self.mu) * self.HFR)
 
         self.beta = self.beta0
-        self.sigma_E_0 = self.sigma_E
 
     def delta_update_param(self, prev):
         '''
@@ -143,13 +148,12 @@ class EpiSetup:
 
         self.beta = self.beta0 * (1 - prev) + self.beta0 * (1.65) * prev #increased transmission
 
-        E_new = 1 / self.sigma_E_0 - 1.5
-        self.sigma_E = self.sigma_E_0 * (1 - prev) + (1/ E_new) * prev #decreased incubation period.
+        E_new = 1 / self.sigma_E - 1.5
+        self.sigma_E = self.sigma_E * (1 - prev) + (1/ E_new) * prev #decreased incubation period.
         # print(self.sigma_E)
 
-        self.YHR = self.YHR_0 * (1 - prev) + self.YHR_0 * (1.8) * prev #increased hospitalization rate.
-
-        self.YHR_overall = self.YHR_overall_0 * (1 - prev) + self.YHR_overall_0 * (1.8) * prev
+        self.YHR = self.YHR * (1 - prev) + self.YHR * (1.8) * prev #increased hospitalization rate.
+        self.YHR_overall = self.YHR_overall * (1 - prev) + self.YHR_overall * (1.8) * prev
 
         #Update parameters where YHR is used:
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
@@ -161,21 +165,26 @@ class EpiSetup:
         self.omega_PA = self.omega_IA * self.omega_P
         self.omega_PY = self.omega_IY * self.omega_P
 
+
         self.pi = np.array([
             self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
             for a in range(len(self.YHR))
         ])
         self.HFR = self.YFR / self.YHR
 
-        self.gamma_ICU = self.gamma_ICU0
-        self.mu_ICU = self.mu_ICU0
-
         try:
-            # self.HICUR0 = self.HICUR
+            self.HICUR0 = self.HICUR
             self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH- self.mu) * self.HICUR)
+            if isinstance(self.gamma_ICU,np.ndarray):
+                self.gamma_ICU = self.gamma_ICU.reshape(self.gamma_ICU.size,1)
+                self.gamma_ICU0 = self.gamma_ICU.copy()
+            if isinstance(self.mu_ICU,np.ndarray):
+                self.mu_ICU = self.mu_ICU.reshape(self.mu_ICU.size,1)
+                self.mu_ICU0 = self.mu_ICU.copy()
             self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU- self.mu_ICU) * self.ICUFR)
         except:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH- self.mu) * self.HFR)
+
 
         # Update hospital dynamic parameters:
         self.gamma_ICU = (self.gamma_ICU0*(1 + self.alpha1)) * (1 - prev) + (self.gamma_ICU0 * 0.65 *(1 + self.alpha1_delta)) * prev
@@ -190,11 +199,10 @@ class EpiSetup:
             Assume increase in the tranmission.
             The changes in hosp dynamic in Austin right before omicron emerged.
         '''
-        self.beta = (self.beta0 * 1.65) * (1 - prev) + (self.beta0 * 1.65) * (self.omicron_beta) * prev #increased transmission
+        self.beta = self.beta * (1 - prev) + self.beta * (self.omicron_beta) * prev #increased transmission
 
-        self.YHR = self.YHR_0 * (1 - prev) + self.YHR_0 * 0.9 * prev
-
-        self.YHR_overall = self.YHR_overall_0 * (1 - prev) + self.YHR_overall_0 * 0.9 * prev
+        self.YHR = self.YHR0 * (1 - prev) + self.YHR0 * 0.9 * prev
+        self.YHR_overall = self.YHR_overall * (1 - prev) + self.YHR_overall * 0.9 * prev
 
         #Update parameters where YHR is used:
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
@@ -206,21 +214,26 @@ class EpiSetup:
         self.omega_PA = self.omega_IA * self.omega_P
         self.omega_PY = self.omega_IY * self.omega_P
 
+
         self.pi = np.array([
             self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
             for a in range(len(self.YHR))
         ])
         self.HFR = self.YFR / self.YHR
 
-        self.gamma_ICU = self.gamma_ICU0
-        self.mu_ICU = self.mu_ICU0
-
         try:
-            # self.HICUR0 = self.HICUR
-            self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-            self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU - self.mu_ICU) * self.ICUFR)
+            self.HICUR0 = self.HICUR
+            self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH- self.mu) * self.HICUR)
+            if isinstance(self.gamma_ICU,np.ndarray):
+                self.gamma_ICU = self.gamma_ICU.reshape(self.gamma_ICU.size,1)
+                self.gamma_ICU0 = self.gamma_ICU.copy()
+            if isinstance(self.mu_ICU,np.ndarray):
+                self.mu_ICU = self.mu_ICU.reshape(self.mu_ICU.size,1)
+                self.mu_ICU0 = self.mu_ICU.copy()
+            self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU- self.mu_ICU) * self.ICUFR)
         except:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH- self.mu) * self.HFR)
+
 
          # Update hospital dynamic parameters:
         self.gamma_ICU = self.gamma_ICU0 *(1 + self.alpha1_omic) * 1.1 * prev + (self.gamma_ICU0 * 0.65 *(1 + self.alpha1_delta)) * (1 - prev)
@@ -233,7 +246,8 @@ class EpiSetup:
         '''
             Assume an imaginary new variant that is more transmissible.
         '''
-        self.beta = (self.beta0 * 1.65 * self.omicron_beta) * (1 - prev) + (self.beta0 * 1.65 * self.omicron_beta) * (self.new_variant_beta) * prev #increased transmission
+        self.beta = self.beta * (1 - prev) + self.beta * (self.new_variant_beta) * prev #increased transmission
+
 
     @property
     def eq_mu(self):
@@ -244,8 +258,6 @@ class EpiSetup:
 
     def effective_phi(self, school, cocooning, social_distance, demographics, day_type):
         '''
-            NEED TO NORMALIZE DEMOGRAPHICS FIRST
-
             school (int): yes (1) / no (0) schools are closed
             cocooning (float): percentage of transmition reduction [0,1]
             social_distance (int): percentage of social distance (0,1)
@@ -309,16 +321,14 @@ class EpiSetup:
         self.gamma_ICU = self.gamma_ICU0*(1 + self.alpha1)
         self.mu_ICU = self.mu_ICU0*(1 + self.alpha3)
         self.gamma_IH = self.gamma_IH0*(1 - self.alpha2)
-    
+
     def update_icu_params(self, rdrate):
         # update the ICU admission parameter HICUR and update nu
-        self.HICUR = self.HICUR0 * rdrate
-        self.nu = self.gamma_IH * self.HICUR0 / (self.mu0 + (self.gamma_IH0 - self.mu0) * self.HICUR0)
-        self.rIH = 1 - (1 - self.rIH0)*rdrate
-        
-    def update_icu_all(self, t, otherInfo):
-        # print("UPDATE ICU ALL")
+        self.HICUR = self.HICUR * rdrate
+        self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH- self.mu) * self.HICUR)
+        self.rIH = 1 - (1 - self.rIH)*rdrate
 
+    def update_icu_all(self, t, otherInfo):
         if 'rIH' in otherInfo.keys():
             if t in otherInfo['rIH'].keys():
                 self.rIH = otherInfo['rIH'][t]
@@ -334,7 +344,7 @@ class EpiSetup:
                 self.mu = self.mu0.copy()/otherInfo['mu'][t]
             else:
                 self.mu = self.mu0.copy()
-        self.nu = self.gamma_IH0 * self.HICUR / (self.mu + (self.gamma_IH0 - self.mu) * self.HICUR)
+        self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH- self.mu) * self.HICUR)
         
 
 class ParamDistribution():
