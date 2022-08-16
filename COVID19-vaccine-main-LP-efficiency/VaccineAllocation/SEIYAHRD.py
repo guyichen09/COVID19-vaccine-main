@@ -212,7 +212,10 @@ class SimulationReplication:
 
             # school, cocooning, social_distance, demographics, day_type
 
-            self.epi = copy.deepcopy(self.epi_rand)
+            # self.epi = copy.deepcopy(self.epi_rand)
+
+            if t == 944:
+                breakpoint()
 
             if t < len(self.instance.real_hosp):
                 phi_t = self.epi.effective_phi(self.instance.cal.schools_closed[t],
@@ -243,7 +246,7 @@ class SimulationReplication:
                 days_since_omicron_start = (calendar[t] - self.instance.omicron_start).days
                 self.epi.omicron_update_param(self.instance.omicron_prev[days_since_omicron_start])
                 for v_groups in self.vaccine_groups:
-                    v_groups.omicron_update(self.instance.delta_prev[days_since_delta_start])
+                    v_groups.omicron_update(self.instance.omicron_prev[days_since_omicron_start])
 
             # Assume an imaginary new variant in May, 2022:
             if self.epi.new_variant == True:

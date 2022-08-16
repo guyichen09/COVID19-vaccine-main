@@ -303,22 +303,30 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                 epi = copy.deepcopy(epi_orig)
             else:
                 epi = copy.deepcopy(epi_rand)
-             
+
+            if t == 944:
+                breakpoint()
+
+            # if t == 441:
+            #     print(dir(epi))
+            #     breakpoint()
                 
             #Update epi parameters for delta prevalence:         
             T_delta = np.where(np.array(v_policy._instance.cal.calendar) == instance.delta_start)[0][0]
             if t >= T_delta:
+                # if t == T_delta:
+                #     breakpoint()
                 for v_groups in v_policy._vaccine_groups:
                     v_groups.delta_update(instance.delta_prev[t - T_delta])
                 epi.delta_update_param(instance.delta_prev[t - T_delta])
-                
-               
-            #Update epi parameters for omicron:     
+
+
+            #Update epi parameters for omicron:
             T_omicron = np.where(np.array(v_policy._instance.cal.calendar) == instance.omicron_start)[0][0]
             if t >= T_omicron:
                 epi.omicron_update_param(instance.omicron_prev[t - T_omicron])
                 for v_groups in v_policy._vaccine_groups:
-                    v_groups.omicron_update(instance.delta_prev[t - T_delta])
+                    v_groups.omicron_update(instance.omicron_prev[t - T_omicron])
             
             
             # Assume an imaginary new variant in May, 2022:

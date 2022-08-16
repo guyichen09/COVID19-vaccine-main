@@ -202,6 +202,7 @@ def trigger_policy_search(instance,
                             sim_j, cost_j, policy_j, _vac_policy, seed_j, kwargs_j = sample_ij
                             print(cost_j)
                             print(policy_j)
+                            print(sim_j[config["infeasible_field"]])
 
                             breakpoint()
 

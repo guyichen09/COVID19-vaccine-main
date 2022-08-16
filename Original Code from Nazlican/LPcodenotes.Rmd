@@ -7,6 +7,73 @@ header-includes:
 - \usepackage{setspace}\doublespacing
 ---
 
+# 08112022 Question
+
+My question: we supposed to be updating epidemiological variables (attributes in the instance of ```EpiSetup```) recursively or with respect to original values? Thank you ahead of time for reading and for your help. I am potentially confused and I am wondeirng if you can help me with some questions.
+
+By updating variables recursively, I mean that every time a variable $x$ is updated, the update looks something like this:
+\[x = x + \texttt{some stuff},\]
+so that $x$ depends on its previous value when it was last updated.
+
+By updating variables with respect to original values, I mean that every time a variable $x$ is updated, the update looks something like this:
+\[x = x_0 + \texttt{some stuff},\]
+so that $x$ does \textit{not} depend on its previous value, and instead only depends on some "nominal" or "ordinal" value $x_0$ that does not change throughout successive updates.
+
+```{}
+epi = copy.deepcopy(epi_rand)
+
+if t >= T_delta:
+  epi.delta_update_param(instance.delta_prev[t - T_delta])
+
+if t >= T_omicron:
+  epi.omicron_update_param(instance.omicron_prev[t - T_omicron])
+```
+
+Below are selected important lines from the function ```simulate_t``` which is called for every day $t = 0, 1, 2, \dots, T$. This is not a verbatim copy and paste, as I have omitted some lines for clarity.
+
+Below, ```epi_rand``` is an instance of ```EpiSetup```, which contains important epidemiological variables such as transmissibility, hospital stay, etc... Because every time we call ```simulate_t``` (i.e. every day we simulate), we work on a new \textit{copy} of ```epi_rand```, \textit{the first time that we update an epidemiological variable within this day, this update is with respect to original values. This update does not recursively depend on the previous day's values.} 
+
+However, because these updates are done "in-place" by modifying ```epi``` attributes, the second time that we update an epidemiological variable within this day, this update is \textit{recursive}.
+
+Consider these line excerpts from ```delta_update_param``` and ```omicron_update_param``` (both are instance methods of ```EpiSetup``` objects).
+
+```{}
+    def delta_update_param(self, prev):
+        
+        self.beta = self.beta0 * (1 - prev) + self.beta0 * (1.65) * prev
+        
+        ...
+        
+        self.YHR = self.YHR * (1 - prev) + self.YHR * (1.8) * prev
+        
+        ...
+        
+        
+    def omicron_update_param(self, prev):
+
+        self.beta = self.beta * (1 - prev) + self.beta * (self.omicron_beta) * prev 
+        
+        ...
+        
+        self.YHR = self.YHR0 * (1 - prev) + self.YHR0 * 0.9 * prev
+        
+        ...
+```
+
+If we are at a day $t$ that is after both the Delta variant start and the Omicron variant start, then every day, we call both above functions. 
+
+I have the following specific concerns:
+
+1. There seems to be an inconsistency: ```delta_update_param``` updates ```beta``` with respect to the original ```beta0``` whereas ```omicron_update_param``` updates ```beta``` recursively. The opposite happens with ```YHR.```
+
+2. When we do the Omicron updating, ```beta``` refers to a previous value of ```beta``` that is \textit{not} the original value, but rather the \textit{value edited by the Delta updating}. 
+
+3. When we do the Omicron updating, because we update ```YHR``` with respect to the original ```YHR0```, this totally erases the impact of Delta. Therefore, the ```YHR``` value is as if only Omicron exists but Delta does not exist. Is this a bug or an assumption that we are purposely making about the model? 
+
+In summary, are these parameters (and other parameters) being updated correctly? Is there another way we should be combining the impacts of Delta and Omicron? A similar issue happens when there is a new variant of concern and we update ```self.beta```. Thank you for the help and clarification!
+
+\newpage
+
 # 08102022 Meeting
 
 ## Notes on Original Code
@@ -30,6 +97,8 @@ header-includes:
   
 - Inconsistency on data types
   - In each ```Vaccine_group``` instance, the simulation variables for that vaccine group are instantiated as floats, but then reset as integers. Not super sure what the difference between the conditions of ```types = "int"``` and ```types = "float"``` in the simulation computation, but there is a small difference in the rsquared output. I think it's better to just make the sensitive data types doubles.
+  
+\newpage
 
 # 08052022 Documentation of Important Bug
 

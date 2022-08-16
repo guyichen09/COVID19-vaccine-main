@@ -20,6 +20,8 @@ import time
 
 def LP_trigger_policy_search(instance, tiers, vaccines):
 
+    start = time.time()
+
     thresholds = (-1,5,15,30,50)
 
     mtp = MultiTierPolicy(instance, tiers, thresholds, "constant", "green")
@@ -31,18 +33,21 @@ def LP_trigger_policy_search(instance, tiers, vaccines):
 
     print(test.policy.compute_cost())
 
-    # print(time.time() - start)
+    print(time.time() - start)
 
-    # hosp_benchmark = instance.real_hosp
-    # real_hosp_end_ix = len(hosp_benchmark)
-    #
-    # IH_sim = np.array(test.ICU_history) + np.array(test.IH_history)
-    # IH_sim = IH_sim.sum(axis=(2, 1))
-    # IH_sim = IH_sim[:real_hosp_end_ix]
-    #
-    # f_benchmark = hosp_benchmark
-    # rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
-    # print(rsq)
+    hosp_benchmark = instance.real_hosp
+    real_hosp_end_ix = len(hosp_benchmark)
+
+    IH_sim = np.array(test.ICU_history) + np.array(test.IH_history)
+    print(IH_sim)
+
+    IH_sim = IH_sim.sum(axis=(2, 1))
+    IH_sim = IH_sim[:real_hosp_end_ix]
+
+    f_benchmark = hosp_benchmark
+    rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum((np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+    print(rsq)
+
 
     # breakpoint()
 

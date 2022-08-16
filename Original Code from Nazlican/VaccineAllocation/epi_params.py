@@ -150,6 +150,7 @@ class EpiSetup:
              
         E_new = 1 / self.sigma_E - 1.5
         self.sigma_E = self.sigma_E * (1 - prev) + (1/ E_new) * prev #decreased incubation period.
+        # print(self.sigma_E)
        
         self.YHR = self.YHR * (1 - prev) + self.YHR * (1.8) * prev #increased hospitalization rate.
         self.YHR_overall = self.YHR_overall * (1 - prev) + self.YHR_overall * (1.8) * prev 
@@ -201,7 +202,7 @@ class EpiSetup:
         self.beta = self.beta * (1 - prev) + self.beta * (self.omicron_beta) * prev #increased transmission
     
         self.YHR = self.YHR0 * (1 - prev) + self.YHR0 * 0.9 * prev
-        self.YHR_overall =  self.YHR_overall * (1 - prev) + self.YHR_overall * 0.9 * prev
+        self.YHR_overall = self.YHR_overall * (1 - prev) + self.YHR_overall * 0.9 * prev
         
         #Update parameters where YHR is used:
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
