@@ -212,10 +212,7 @@ class SimulationReplication:
 
             # school, cocooning, social_distance, demographics, day_type
 
-            # self.epi = copy.deepcopy(self.epi_rand)
-
-            if t == 944:
-                breakpoint()
+            self.epi = copy.deepcopy(self.epi_rand)
 
             if t < len(self.instance.real_hosp):
                 phi_t = self.epi.effective_phi(self.instance.cal.schools_closed[t],
@@ -259,6 +256,10 @@ class SimulationReplication:
                     self.epi.update_icu_params(kwargs["rd_rate"])
             else:
                 self.epi.update_icu_all(t,self.instance.otherInfo)
+
+            if t == 0:
+                breakpoint()
+            # print(self.epi.beta)
 
             rate_E = discrete_approx(self.epi.sigma_E, self.step_size)
 

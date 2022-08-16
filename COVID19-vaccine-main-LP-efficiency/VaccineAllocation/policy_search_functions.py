@@ -39,7 +39,7 @@ def LP_trigger_policy_search(instance, tiers, vaccines):
     real_hosp_end_ix = len(hosp_benchmark)
 
     IH_sim = np.array(test.ICU_history) + np.array(test.IH_history)
-    print(IH_sim)
+    # print(IH_sim)
 
     IH_sim = IH_sim.sum(axis=(2, 1))
     IH_sim = IH_sim[:real_hosp_end_ix]
