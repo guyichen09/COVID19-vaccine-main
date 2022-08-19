@@ -4,7 +4,6 @@ import datetime as dt
 from pipelinemultitier import read_hosp
 from SEIYAHRD import simulate_p
 from VaccineAllocation import config, logger
-from objective_functions import multi_tier_objective
 from trigger_policies import MultiTierPolicy as MTP
 from scipy.optimize import least_squares
 import copy

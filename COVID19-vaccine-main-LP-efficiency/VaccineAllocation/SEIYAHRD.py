@@ -53,6 +53,29 @@ class SimulationReplication:
 
         self.policy = policy
 
+        # The next t that is simulated
+        # This instance has simulated up to but not including time next_t
+        self.next_t = 0
+
+        self.t_historical_data_end = len(self.instance.real_hosp)
+
+    def compute_ICU_violation(self):
+
+        return np.any(np.array(self.ICU_history).sum(axis=(1, 2))[self.t_historical_data_end:] > self.instance.icu)
+
+    def compute_rsq(self):
+
+        f_benchmark = self.instance.real_hosp
+
+        IH_sim = np.array(self.ICU_history) + np.array(self.IH_history)
+        IH_sim = IH_sim.sum(axis=(2, 1))
+        IH_sim = IH_sim[:self.t_historical_data_end]
+
+        rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
+            (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+
+        return rsq
+
     def define_epi(self):
 
         self.rng_generator = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
@@ -129,6 +152,8 @@ class SimulationReplication:
 
         for t in range(time_start, time_end):
 
+            self.next_t += 1
+
             self.simulate_t(t)
 
             A = self.instance.A
@@ -203,14 +228,6 @@ class SimulationReplication:
 
         for t_idx in range(1):
             t = t_date
-            # Get dynamic intervention and corresponding contact matrix
-            #k_t, kwargs = policy(t, criStat=eval(kwargs["policy_field"])[:t], IH=IH[:t], **kwargs)
-
-            # LP uncommented
-            # k_t =  policy._intervention_history[t]
-            # phi_t = interventions[k_t].phi(calendar.get_day_type(t))
-
-            # school, cocooning, social_distance, demographics, day_type
 
             self.epi = copy.deepcopy(self.epi_rand)
 
@@ -229,8 +246,6 @@ class SimulationReplication:
                                        self.policy.tiers[current_tier]["transmission_reduction"],
                                        N / N.sum(),
                                        self.instance.cal.get_day_type(t))
-
-            # print(np.sum(phi_t))
 
             if calendar[t] >= self.instance.delta_start:
                 days_since_delta_start = (calendar[t] - self.instance.delta_start).days
@@ -257,12 +272,7 @@ class SimulationReplication:
             else:
                 self.epi.update_icu_all(t,self.instance.otherInfo)
 
-            if t == 0:
-                breakpoint()
-            # print(self.epi.beta)
-
             rate_E = discrete_approx(self.epi.sigma_E, self.step_size)
-
             rate_IYR = discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * (1 - self.epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
             rate_IYD = discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * self.epi.alpha4 for l in range(L)] for a in range(A)]), self.step_size)
             rate_IAR = discrete_approx(np.tile(self.epi.gamma_IA, (L, A)).transpose(), self.step_size)
@@ -318,7 +328,6 @@ class SimulationReplication:
                         # Dynamics for E
                         E_out = self.rv_gen(v_groups._E[_t], rate_E)
                         v_groups._E[_t + 1] = v_groups._E[_t] + _dS - E_out
-
 
                     if t >= 711 and v_groups.v_name != 'v_3':
                         immune_escape_R = self.rv_gen(v_groups._R[_t], rate_immune)
@@ -658,7 +667,6 @@ class SimCalendar():
     def __len__(self):
         return len(self.calendar)
 
-
 def get_next_month(dateG):
     if dateG.month == 12:
         startMonth = 1
@@ -667,7 +675,6 @@ def get_next_month(dateG):
         startMonth = dateG.month + 1
         startYear = dateG.year
     return dt.datetime(startYear, startMonth, 1)
-
 
 def discrete_approx(rate, timestep):
     #return (1 - (1 - rate)**(1 / timestep))

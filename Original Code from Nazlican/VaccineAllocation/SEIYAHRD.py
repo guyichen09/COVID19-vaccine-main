@@ -304,9 +304,6 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
             else:
                 epi = copy.deepcopy(epi_rand)
 
-            if t == 944:
-                breakpoint()
-
             # if t == 441:
             #     print(dir(epi))
             #     breakpoint()
@@ -328,7 +325,6 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                 for v_groups in v_policy._vaccine_groups:
                     v_groups.omicron_update(instance.omicron_prev[t - T_omicron])
             
-            
             # Assume an imaginary new variant in May, 2022:
             if epi.new_variant == True:
                 T_variant= np.where(np.array(v_policy._instance.cal.calendar) == instance.variant_start)[0][0]
@@ -340,8 +336,6 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
                     epi.update_icu_params(kwargs["rd_rate"])
             else:
                 epi.update_icu_all(t,instance.otherInfo)
-             
-                
 
             rate_E = discrete_approx(epi.sigma_E, step_size)
             rate_IYR = discrete_approx(np.array([[(1 - epi.pi[a, l]) * epi.gamma_IY * (1 - epi.alpha4) for l in range(L)] for a in range(A)]), step_size)
@@ -359,7 +353,7 @@ def simulate_t(instance, v_policy, policy, interventions, t_date, epi_rand, epi_
             if t >= 711: #date corresponding to 02/07/2022
                 rate_immune = discrete_approx(epi.immune_evasion, step_size) 
 
-                
+
             for _t in range(step_size):
                 # Dynamics for dS
 

@@ -19,14 +19,6 @@ def load_config_file(config_filename):
     with open(config_file, 'r') as input_file:
         config = json.load(input_file)
 
-
-def change_paths(args):
-    if args.machine == 'frontera':  # TACC server
-        global output_path
-        global plots_path
-        output_path = Path('$SCRATCH/InterventionsMIP/output') / 'output/'
-        plots_path = Path('$SCRATCH/InterventionsMIP/output') / 'plots/'
-
 import logging
 
 logger = logging.getLogger('TriggerOpt')

@@ -7,6 +7,38 @@ header-includes:
 - \usepackage{setspace}\doublespacing
 ---
 
+# 08242022 Meeting
+
+## Questions
+
+- Edge case for tiers at the end of the historical period (start of the optimization horizon): the original version of the code computes tiers for the historical period. Won't this affect the optimization period in some cases? Because we have the 14-day rule!!!!
+
+# 08162022 Question Draft
+
+As an addendum and more context to question #1, the current code has a structure like this...
+
+For each timepoint t:
+   *do stuff*
+   if t >= delta_start:
+       delta_update_param
+   if t >= omicron_start:
+       omicron_update_param
+
+I tested the following variation of the code:
+
+For each timepoint t:
+   *do stuff*
+   if t >= delta_start and t < omicron_start:
+       delta_update_param
+   if t >= omicron_start:
+       omicron_update_param
+
+^ In the variation, we only do delta_update_param 
+
+THE RESULTS ARE DIFFERENT
+
+At time 700, self.epi.gamma_ICU, self.epi.mu_ICU, self.epi.gamma_IH are all different!
+
 # 08112022 Question
 
 My question: we supposed to be updating epidemiological variables (attributes in the instance of ```EpiSetup```) recursively or with respect to original values? Thank you ahead of time for reading and for your help. I am potentially confused and I am wondeirng if you can help me with some questions.

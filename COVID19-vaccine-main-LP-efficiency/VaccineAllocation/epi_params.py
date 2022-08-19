@@ -7,7 +7,6 @@ Texas Advanced Computing Center (TACC)
 import numpy as np
 from itertools import product
 
-
 class EpiSetup:
     '''
         A setup for the epidemiological parameters.
@@ -165,7 +164,6 @@ class EpiSetup:
         self.omega_PA = self.omega_IA * self.omega_P
         self.omega_PY = self.omega_IY * self.omega_P
 
-
         self.pi = np.array([
             self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
             for a in range(len(self.YHR))
@@ -184,7 +182,6 @@ class EpiSetup:
             self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU- self.mu_ICU) * self.ICUFR)
         except:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH- self.mu) * self.HFR)
-
 
         # Update hospital dynamic parameters:
         self.gamma_ICU = (self.gamma_ICU0*(1 + self.alpha1)) * (1 - prev) + (self.gamma_ICU0 * 0.65 *(1 + self.alpha1_delta)) * prev
@@ -245,14 +242,6 @@ class EpiSetup:
             Assume an imaginary new variant that is more transmissible.
         '''
         self.beta = self.beta * (1 - prev) + self.beta * (self.new_variant_beta) * prev #increased transmission
-
-
-    @property
-    def eq_mu(self):
-        # A conservative estimation of hospital service rate
-        # Side computation for square root staffing
-        self.update_rnd_stream(None)
-        return np.minimum(self.gamma_IH, self.mu)
 
     def effective_phi(self, school, cocooning, social_distance, demographics, day_type):
         '''
@@ -343,7 +332,6 @@ class EpiSetup:
             else:
                 self.mu = self.mu0.copy()
         self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH- self.mu) * self.HICUR)
-
 
 class ParamDistribution():
     '''

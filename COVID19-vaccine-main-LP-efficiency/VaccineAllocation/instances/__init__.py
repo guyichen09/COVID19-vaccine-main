@@ -14,7 +14,6 @@ instances_path = Path(__file__).parent
 datetime_formater = '%Y-%m-%d %H:%M:%S'
 date_formater = '%Y-%m-%d'
 
-
 class Instance():
     def __init__(self, city, setup_file_name, transmission_file_name, hospitalization_file_name):
         self.city = city
@@ -40,9 +39,7 @@ class Instance():
             
             # Load demographics
             self.N = np.array(data['population'])
-            del self.population
             self.I0 = np.array(data['IY_ini'])
-            del self.IY_ini
             
             # Load simulation dates
             self.start_date = dt.datetime.strptime(data['start_date'], datetime_formater)
@@ -54,11 +51,9 @@ class Instance():
                     dt.datetime.strptime(data['school_closure'][blSc][0], datetime_formater),
                     dt.datetime.strptime(data['school_closure'][blSc][1], datetime_formater)
                 ])
-            del self.school_closure
             
             # Load epi parameters
             self.epi = EpiSetup.load_file(data['epi_params'])
-            del self.epi_params
             # check if qInt is in epi, if not, add a placeholder
             try:
                 self.epi.qInt['testStart'] = dt.datetime.strptime(self.epi.qInt['testStart'], datetime_formater)
@@ -89,7 +84,6 @@ class Instance():
             df_hosp = df_hosp[df_hosp['date'] <= self.end_date]
             self.real_hosp = [0] * (df_hosp['date'][0] - self.start_date).days + list(df_hosp['hospitalized'])
     
-    
         filename = str(self.delta_prev_file)
         with open(filename, 'r') as hosp_file:
             df_delta = pd.read_csv(
@@ -99,7 +93,6 @@ class Instance():
             )
         self.delta_prev = list(df_delta['delta_prev'])    
         self.delta_start = df_delta['date'][0]
-    
     
         filename = str(self.omicron_prev_file)
         with open(filename, 'r') as hosp_file:
@@ -126,11 +119,6 @@ class Instance():
             Compute couple parameters (i.e., parameters that depend on the input)
             and build th simulation calendar.
         '''
-        hosp_beds = self.hosp_beds
-        k = self.staffing_rule_safety
-        root_sol = root_scalar(lambda x: x + k * np.sqrt(x) - hosp_beds, x0=hosp_beds, x1=hosp_beds * 0.5)
-        assert root_sol.converged, 'Staffing rule failed'
-        self.lambda_star = root_sol.root
         
         # Dimension variables
         self.A = len(self.N)
@@ -166,7 +154,7 @@ class Instance():
                             d_ix = cal.calendar_ix[d]
                             self.otherInfo[dfk][d_ix] = dfv
         except FileNotFoundError:
-            # Initialize empty if no file avalabe
+            # Initialize empty if no file available
             cal.load_fixed_transmission_reduction([])
         
         # School closures and school calendar
@@ -216,7 +204,6 @@ class Tier:
                  self.case_threshold = None     
             self.tier = tier_data['tiers']
 
-
 def load_instance(city, setup_file_name, transmission_file_name, hospitalization_file_name):
     # TODO: Add the option of providing a different setup file
     instance = Instance(city, setup_file_name, transmission_file_name, hospitalization_file_name)
@@ -246,7 +233,6 @@ def load_vaccines(city, instance, vaccine_file_name = 'vaccines.json', booster_f
     path_to_data = instances_path / f"{city}"
     vaccine_file = path_to_data / vaccine_file_name
     vaccine_allocation_file_name = path_to_data / vaccine_allocation_file_name
-    
   
     with open(vaccine_file, 'r') as vaccine_input:
         vaccine_data = json.load(vaccine_input)
@@ -262,17 +248,4 @@ def load_vaccines(city, instance, vaccine_file_name = 'vaccines.json', booster_f
          booster_allocation_data = None
                   
     vaccines = Vaccine(vaccine_data, vaccine_allocation_data, booster_allocation_data, instance)
-    #breakpoint()
     return vaccines
-   
-
-def load_seeds(city, seeds_file_name='seeds.p'):
-    # read in the seeds file
-    seedsinput = instances_path / f"{city}"
-    try:
-        with open(seedsinput / seeds_file_name, 'rb') as infile:
-            seeds_data = pickle.load(infile)
-        return seeds_data[0], seeds_data[1]    
-        #return seeds_data['training'], seeds_data['testing']
-    except:
-        return [],[]
