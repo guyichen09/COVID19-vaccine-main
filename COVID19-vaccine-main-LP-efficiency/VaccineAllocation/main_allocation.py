@@ -10,43 +10,43 @@ if __name__ == '__main__':
     import time
     start = time.time()
 
-    import sys
-    # sys.path.append("/home/lpei/scratch/06202022/COVID19-vaccine-main/VaccineAllocation")
-    # sys.path.append("/home/lpei/scratch/06202022/COVID19-vaccine-main")
+    from SimObjects import ProblemInstance, TierInformation, VaccineInstance
 
-    sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/COVID19-vaccine-main-LP-efficiency/VaccineAllocation")
-    sys.path.append("/Users/lindapei/Dropbox/RESEARCH/Summer2022/COVID19-vaccine-main/COVID19-vaccine-main-LP-efficiency/")
+    austin = ProblemInstance("austin",
+                             "austin_test_IHT.json",
+                             "calendar.csv",
+                             "setup_data_Final.json",
+                             "transmission.csv",
+                             "austin_real_hosp_updated.csv",
+                             "delta_prevalence.csv",
+                             "omicron_prevalence.csv",
+                             "variant_prevalence.csv"
+                             )
 
-    from utils import parse_arguments
-    from VaccineAllocation import load_config_file
+    tiers = TierInformation("austin", "tiers5_opt_Final.json")
 
-    # Parse arguments
-    args = parse_arguments()
-    # Load config file
-    load_config_file(args.f_config)
-    
-    from instances import load_instance, load_tiers, load_vaccines
-    from policy_search_functions import LP_trigger_policy_search
+    vaccines = VaccineInstance(austin,
+                               "austin",
+                               "vaccines.json",
+                               "booster_allocation_fixed.csv",
+                               "vaccine_allocation_fixed.csv")
 
-    # Parse city and get corresponding instance
-    instance = load_instance(args.city, setup_file_name=args.f, transmission_file_name=args.tr, hospitalization_file_name=args.hos)
-    tiers = load_tiers(args.city, tier_file_name=args.t)
+    start = time.time()
 
-    vaccines = load_vaccines(args.city, instance, vaccine_file_name=args.v, booster_file_name = args.v_boost, vaccine_allocation_file_name = args.v_allocation)
-    
-    # TODO: pull out n_replicas_train and n_replicas_test to a config file
-    n_replicas_train = args.train_reps
-    n_replicas_test = args.test_reps
+    thresholds = (-1,5,15,30,50)
 
-    given_threshold = eval(args.gt) if args.gt is not None else None
+    mtp = MultiTierPolicy(austin, tiers, thresholds, "constant", "green")
 
-    if args.pub is not None:
-        policy_ub = eval(args.pub)
-    else:
-        policy_ub = None
+    test = SimulationReplication(austin, vaccines, mtp, 100)
 
-    LP_trigger_policy_search(instance=instance,
-                          tiers=tiers.tier,
-                          vaccines=vaccines)
+    test.simulate_time_period(0,100,None)
+    test.simulate_time_period(100,945,None)
+
+    print(test.policy.compute_cost())
+
+    print(time.time() - start)
+
+    print(test.compute_rsq())
+    print(test.compute_ICU_violation())
 
     print(time.time() - start)
