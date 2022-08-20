@@ -12,7 +12,9 @@ header-includes:
 ## Questions
 
 - Edge case for tiers at the end of the historical period (start of the optimization horizon): the original version of the code computes tiers for the historical period. Won't this affect the optimization period in some cases? Because we have the 14-day rule!!!!
-- Need to update ```calendar.csv``` if simulation is run past 09/30/2022 ya? Is there a source for this data? 
+- Need to update ```calendar.csv``` if simulation is run past 09/30/2022 ya? Is there a source for this data?
+- In ```setup_data_Final.json```, why is ```new_variant``` set to ```False``` ?
+- OtherInfo stuff???? What is that? Ask Nazlican about the overwriting. What is ```update_icu_params``` and ```kwargs["rd_rate"]``` and all that? And what's the difference between this method and ```update_icu_all?```
 
 # 08162022 Question Draft
 

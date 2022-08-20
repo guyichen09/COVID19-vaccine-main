@@ -10,7 +10,9 @@ if __name__ == '__main__':
     import time
     start = time.time()
 
-    from SimObjects import ProblemInstance, TierInformation, VaccineInstance
+    from SimObjects import MultiTierPolicy
+    from DataObjects import ProblemInstance, TierInformation, VaccineInstance
+    from SimModel import SimulationReplication
 
     austin = ProblemInstance("austin",
                              "austin_test_IHT.json",
@@ -39,8 +41,8 @@ if __name__ == '__main__':
 
     test = SimulationReplication(austin, vaccines, mtp, 100)
 
-    test.simulate_time_period(0,100,None)
-    test.simulate_time_period(100,945,None)
+    test.simulate_time_period(0,900,None)
+    test.simulate_time_period(900,945,None)
 
     print(test.policy.compute_cost())
 

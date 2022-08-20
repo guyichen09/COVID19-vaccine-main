@@ -270,21 +270,21 @@ class SimulationReplication:
             else:
                 self.epi.update_icu_all(t,self.instance.otherInfo)
 
-            rate_E = discrete_approx(self.epi.sigma_E, self.step_size)
-            rate_IYR = discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * (1 - self.epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IYD = discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * self.epi.alpha4 for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IAR = discrete_approx(np.tile(self.epi.gamma_IA, (L, A)).transpose(), self.step_size)
-            rate_PAIA = discrete_approx(np.tile(self.epi.rho_A, (L, A)).transpose(), self.step_size)
-            rate_PYIY = discrete_approx(np.tile(self.epi.rho_Y, (L, A)).transpose(), self.step_size)
-            rate_IYH = discrete_approx(np.array([[(self.epi.pi[a, l]) * self.epi.Eta[a] * self.epi.rIH for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IYICU = discrete_approx(np.array([[(self.epi.pi[a, l]) * self.epi.Eta[a] * (1 - self.epi.rIH) for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IHICU = discrete_approx(self.epi.nu*self.epi.mu,self.step_size)
-            rate_IHR = discrete_approx((1 - self.epi.nu)*self.epi.gamma_IH, self.step_size)
-            rate_ICUD = discrete_approx(self.epi.nu_ICU*self.epi.mu_ICU, self.step_size)
-            rate_ICUR = discrete_approx((1 - self.epi.nu_ICU)*self.epi.gamma_ICU, self.step_size)
+            rate_E = self.discrete_approx(self.epi.sigma_E, self.step_size)
+            rate_IYR = self.discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * (1 - self.epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
+            rate_IYD = self.discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * self.epi.alpha4 for l in range(L)] for a in range(A)]), self.step_size)
+            rate_IAR = self.discrete_approx(np.tile(self.epi.gamma_IA, (L, A)).transpose(), self.step_size)
+            rate_PAIA = self.discrete_approx(np.tile(self.epi.rho_A, (L, A)).transpose(), self.step_size)
+            rate_PYIY = self.discrete_approx(np.tile(self.epi.rho_Y, (L, A)).transpose(), self.step_size)
+            rate_IYH = self.discrete_approx(np.array([[(self.epi.pi[a, l]) * self.epi.Eta[a] * self.epi.rIH for l in range(L)] for a in range(A)]), self.step_size)
+            rate_IYICU = self.discrete_approx(np.array([[(self.epi.pi[a, l]) * self.epi.Eta[a] * (1 - self.epi.rIH) for l in range(L)] for a in range(A)]), self.step_size)
+            rate_IHICU = self.discrete_approx(self.epi.nu*self.epi.mu,self.step_size)
+            rate_IHR = self.discrete_approx((1 - self.epi.nu)*self.epi.gamma_IH, self.step_size)
+            rate_ICUD = self.discrete_approx(self.epi.nu_ICU*self.epi.mu_ICU, self.step_size)
+            rate_ICUR = self.discrete_approx((1 - self.epi.nu_ICU)*self.epi.gamma_ICU, self.step_size)
 
             if t >= 711: #date corresponding to 02/07/2022
-                rate_immune = discrete_approx(self.epi.immune_evasion, self.step_size)
+                rate_immune = self.discrete_approx(self.epi.immune_evasion, self.step_size)
 
             for _t in range(self.step_size):
                 # Dynamics for dS
@@ -527,153 +527,6 @@ class SimulationReplication:
             else:
                 return self.rng_generator.binomial(n, p)
 
-WEEKDAY = 1
-WEEKEND = 2
-HOLIDAY = 3
-LONG_HOLIDAY = 4
-
-class SimCalendar:
-    '''
-        A simulation calendar to map time steps to days. This class helps
-        to determine whether a time step t is a weekday or a weekend, as well
-        as school calendars.
-
-        Attrs:
-        start (datetime): start date of the simulation
-        calendar (list): list of datetime for every time step
-    '''
-    def __init__(self, start_date, sim_length):
-        '''
-            Arg
-        '''
-        self.start = start_date
-        self.calendar = [self.start + dt.timedelta(days=t) for t in range(sim_length)]
-        self.calendar_ix = {d: d_ix for (d_ix, d) in enumerate(self.calendar)}
-        self._is_weekday = [d.weekday() not in [5, 6] for d in self.calendar]
-        self._day_type = [WEEKDAY if iw else WEEKEND for iw in self._is_weekday]
-        self.lockdown = None
-        self.schools_closed = None
-        self.fixed_transmission_reduction = None
-        self.fixed_cocooning = None
-        self.month_starts = self.get_month_starts()
-    
-    def is_weekday(self, t):
-        '''
-            True if t is a weekday, False otherwise
-        '''
-        return self._is_weekday[t]
-    
-    def get_day_type(self, t):
-        '''
-            Returns the date type with the convention of the class
-        '''
-        return self._day_type[t]
-    
-    def load_predefined_lockdown(self, lockdown_blocks):
-        '''
-            Loads fixed decisions on predefined lock-downs and saves
-            it on attribute lockdown.
-            Args:
-                lockdown_blocks (list of tuples): a list with blocks in which predefined lockdown is enacted
-                (e.g. [(datetime.date(2020,3,24),datetime.date(2020,8,28))])
-            
-        '''
-        self.lockdown = []
-        for d in self.calendar:
-            closedDay = False
-            for blNo in range(len(lockdown_blocks)):
-                if d >= lockdown_blocks[blNo][0] and d <= lockdown_blocks[blNo][1]:
-                    closedDay = True
-            self.lockdown.append(closedDay)
-    
-    def load_school_closure(self, school_closure_blocks):
-        '''
-            Load fixed decisions on school closures and saves
-            it on attribute schools_closed
-            Args:
-                school_closure_blocks (list of tuples): a list with blocks in which schools are closed
-                (e.g. [(datetime.date(2020,3,24),datetime.date(2020,8,28))])
-        '''
-        self.schools_closed = []
-        for d in self.calendar:
-            closedDay = False
-            for blNo in range(len(school_closure_blocks)):
-                if d >= school_closure_blocks[blNo][0] and d <= school_closure_blocks[blNo][1]:
-                    closedDay = True
-            self.schools_closed.append(closedDay)
-    
-    def load_fixed_transmission_reduction(self, ts_transmission_reduction, present_date=dt.datetime.today()):
-        '''
-            Load fixed decisions on transmission reduction and saves it on attribute fixed_transmission_reduction.
-            If a value is not given, the transmission reduction is None.
-            Args:
-                ts_transmission_reduction (list of tuple): a list with the time series of
-                    transmission reduction (datetime, float).
-                present_date (datetime): reference date so that all dates before must have a
-                    transmission reduction defined
-        '''
-        self.fixed_transmission_reduction = [None for d in self.calendar]
-        for (d, tr) in ts_transmission_reduction:
-            if d in self.calendar_ix:
-                d_ix = self.calendar_ix[d]
-                self.fixed_transmission_reduction[d_ix] = tr
-                
-    def load_fixed_cocooning(self, ts_cocooning, present_date=dt.datetime.today()):
-        '''
-            Load fixed decisions on transmission reduction and saves it on attribute fixed_transmission_reduction.
-            If a value is not given, the transmission reduction is None.
-            Args:
-                ts_cocooning (list of tuple): a list with the time series of
-                    transmission reduction (datetime, float).
-                present_date (datetime): reference date so that all dates before must have a
-                    transmission reduction defined
-        '''
-        self.fixed_cocooning = [None for d in self.calendar]
-        for (d, tr) in ts_cocooning:
-            if d in self.calendar_ix:
-                d_ix = self.calendar_ix[d]
-                self.fixed_cocooning[d_ix] = tr
-
-    
-    def load_holidays(self, holidays=[], long_holidays=[]):
-        '''
-            Change the day_type for holidays
-        '''
-        for hd in holidays:
-            dt_hd = dt.datetime(hd.year, hd.month, hd.day)
-            if dt_hd in self.calendar:
-                self._day_type[self.calendar_ix[dt_hd]] = HOLIDAY
-        
-        for hd in long_holidays:
-            dt_hd = dt.datetime(hd.year, hd.month, hd.day)
-            if dt_hd in self.calendar:
-                self._day_type[self.calendar_ix[dt_hd]] = LONG_HOLIDAY
-    
-    def get_month_starts(self):
-        '''
-            Get a list of first days of months
-        '''
-        month_starts = []
-        
-        currentTemp = get_next_month(self.start)
-        while currentTemp <= self.calendar[-1]:
-            month_starts.append(self.calendar_ix[currentTemp])
-            currentTemp = get_next_month(currentTemp)
-        
-        return month_starts
-    
-    def __len__(self):
-        return len(self.calendar)
-
-def get_next_month(dateG):
-    if dateG.month == 12:
-        startMonth = 1
-        startYear = dateG.year + 1
-    else:
-        startMonth = dateG.month + 1
-        startYear = dateG.year
-    return dt.datetime(startYear, startMonth, 1)
-
-def discrete_approx(rate, timestep):
-    #return (1 - (1 - rate)**(1 / timestep))
-    return (1 - np.exp(-rate/timestep))
+    def discrete_approx(self, rate, timestep):
+        # return (1 - (1 - rate)**(1 / timestep))
+        return (1 - np.exp(-rate / timestep))
