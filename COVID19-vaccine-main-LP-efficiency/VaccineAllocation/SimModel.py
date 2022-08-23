@@ -78,9 +78,8 @@ class SimulationReplication:
 
         self.rng_generator = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
 
-        epi = self.instance.epi
-        epi_orig = copy.deepcopy(epi)
-        epi_rand = copy.deepcopy(epi)
+        epi_orig = copy.deepcopy(self.instance.base_epi)
+        epi_rand = copy.deepcopy(self.instance.base_epi)
 
         epi_rand.update_rnd_stream(self.rng_generator)
         epi_orig.update_rnd_stream(None)

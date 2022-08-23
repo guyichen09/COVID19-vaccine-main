@@ -33,6 +33,8 @@ if __name__ == '__main__':
                                "booster_allocation_fixed.csv",
                                "vaccine_allocation_fixed.csv")
 
+    print(time.time() - start)
+
     start = time.time()
 
     thresholds = (-1,5,15,30,50)
@@ -45,8 +47,6 @@ if __name__ == '__main__':
     test.simulate_time_period(900,945,None)
 
     print(test.policy.compute_cost())
-
-    print(time.time() - start)
 
     print(test.compute_rsq())
     print(test.compute_ICU_violation())
