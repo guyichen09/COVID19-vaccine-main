@@ -6,7 +6,7 @@ from pathlib import Path
 
 from itertools import product
 
-instances_path = Path(__file__).parent
+base_path = Path(__file__).parent
 
 datetime_formater = '%Y-%m-%d %H:%M:%S'
 
@@ -157,7 +157,7 @@ class SimCalendar:
             startYear = dateG.year
         return dt.datetime(startYear, startMonth, 1)
 
-class ProblemInstance:
+class City:
     def __init__(self, city,
                  config_filename,
                  calendar_filename,
@@ -168,7 +168,7 @@ class ProblemInstance:
                  omicron_prevalence_filename,
                  variant_prevalence_filename):
         self.city = city
-        self.path_to_data = instances_path / "instances" / f"{city}"
+        self.path_to_data = base_path / "instances" / f"{city}"
 
         with open(str(self.path_to_data / config_filename), 'r') as input_file:
             self.config = json.load(input_file)
@@ -329,14 +329,14 @@ class ProblemInstance:
             self.cal,
         )
 
-class TierInformation:
+class TierInfo:
     def __init__(self, city, tier_filename):
-        self.path_to_data = instances_path / "instances" / f"{city}"
+        self.path_to_data = base_path / "instances" / f"{city}"
         with open(str(self.path_to_data / tier_filename), 'r') as tier_input:
             tier_data = json.load(tier_input)
             self.tier = tier_data['tiers']
 
-class VaccineInstance:
+class Vaccine:
     '''
         Vaccine class to define epidemiological characteristics, supply and fixed allocation schedule of vaccine.
         Parameters:
@@ -351,7 +351,7 @@ class VaccineInstance:
                  booster_filename,
                  vaccine_allocation_filename):
 
-        self.path_to_data = instances_path / "instances" / f"{city}"
+        self.path_to_data = base_path / "instances" / f"{city}"
 
         with open(str(self.path_to_data / vaccine_filename), 'r') as vaccine_input:
             vaccine_data = json.load(vaccine_input)
@@ -588,7 +588,7 @@ class EpiSetup:
                                        'qRate': {'IY': 0, 'IA': 0, 'PY': 0, 'PA': 0},
                                        'randTest': 0})
 
-        self.num_random_variates_used = 0
+        self.num_random_params = 0
 
     def load_file(self, params):
         for (k, v) in params.items():
@@ -616,7 +616,7 @@ class EpiSetup:
             if isinstance(v, ParamDistribution):
                 tempRecord[v.param_name] = v.sample(rnd_stream)
                 if rnd_stream is not None:
-                    self.num_random_variates_used += 1
+                    self.num_random_params += 1
             elif isinstance(v, np.ndarray):
                 listDistrn = True
                 # if it is a list of random variable, generate a list of deterministic values
@@ -628,7 +628,7 @@ class EpiSetup:
                         vValue = ParamDistribution(*vItem)
                         outList.append(vValue.sample(rnd_stream))
                         if rnd_stream is not None:
-                            self.num_random_variates_used += 1
+                            self.num_random_params += 1
                         outName = vValue.param_name
                     except:
                         vValue = 0

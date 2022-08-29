@@ -1,5 +1,9 @@
 ############
 
+# 08232022 
+# For checking answers: comparing OG to my version
+python3 -O -m pdb main_allocation.py austin -f setup_data_Final.json -t tiers_LP_debug.json -n_proc 1 -train_reps 2 -test_reps 1 -f_config austin_test_IHT.json -tr transmission.csv -hos austin_real_hosp_updated.csv -v_allocation vaccine_allocation_fixed.csv -v_boost booster_allocation_fixed.csv -n_policy 7
+
 # 07262022
 
 python3 -m pdb main_allocation.py austin -f setup_data_Final.json -t tiers5_opt_Final.json -train_reps 1 -test_reps 1 -f_config austin_test_IHT.json -n_proc 1 -tr transmission.csv -hos austin_real_hosp_updated.csv  -v_allocation vaccine_allocation_fixed.csv -n_policy=7  -v_boost booster_allocation_fixed.csv # -gt [-1,5,15,30,50] 

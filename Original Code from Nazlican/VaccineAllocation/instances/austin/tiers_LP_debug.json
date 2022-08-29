@@ -20,7 +20,7 @@
         "min_enforcing_time": 14,
         "daily_cost": 1,
         "color": "blue",
-        "candidate_thresholds": [1]
+        "candidate_thresholds": [10, 100]
     },
     {
         "name": "Stage 3",
@@ -30,7 +30,7 @@
         "min_enforcing_time": 14,
         "daily_cost": 10,
         "color": "yellow",
-        "candidate_thresholds": [30]
+        "candidate_thresholds": [20, 200]
     },
     {
         "name": "Stage 4",
@@ -40,7 +40,7 @@
         "min_enforcing_time": 14,
         "daily_cost": 100,
         "color": "orange",
-        "candidate_thresholds": [90]
+        "candidate_thresholds": [50, 500, 5000]
     },
     {
         "name": "Stage 5",
@@ -50,7 +50,7 @@
         "min_enforcing_time": 14,
         "daily_cost": 10000,
         "color": "red",
-        "candidate_thresholds": [500, 600]
+        "candidate_thresholds": [1000, 10000]
     }
     ]
 }

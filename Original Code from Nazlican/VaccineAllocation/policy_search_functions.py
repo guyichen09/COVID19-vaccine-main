@@ -57,7 +57,7 @@ def trigger_policy_search(instance,
     print(t_start)
 
     # LP
-    crn_seeds = [100]
+    crn_seeds = [500, 5000]
     
     selected_vaccine_policy = vaccine_policy
     # Build an iterator of all the candidate trigger policies (with given fixed vaccine policy) to be simulated by simulate_p
@@ -105,7 +105,11 @@ def trigger_policy_search(instance,
         num_days_violate_ICU_vector = []
         # before the simulation starts
         num_days_violate_ICU_historical_vector = []
-        seeds_vector = []
+
+        # seeds_vector = [500, 5000]
+
+        start = time.time()
+        print(start)
 
         for ix, output_i in enumerate(all_outputs):
             policy_counter += 1
@@ -202,9 +206,9 @@ def trigger_policy_search(instance,
                             sim_j, cost_j, policy_j, _vac_policy, seed_j, kwargs_j = sample_ij
                             print(cost_j)
                             print(policy_j)
-                            print(sim_j[config["infeasible_field"]])
+                            # print(sim_j[config["infeasible_field"]])
 
-                            breakpoint()
+                            # breakpoint()
 
                             # LP
                             infeasible_cap_field = {"ICU": instance.icu,
@@ -217,7 +221,7 @@ def trigger_policy_search(instance,
                             num_days_violate_ICU_vector.append(num_days_violate_ICU)
                             num_days_violate_ICU_historical = np.sum(sim_j[config["infeasible_field"]][0:real_hosp_end_ix] > infeasible_cap_field[config['infeasible_field']])
                             num_days_violate_ICU_historical_vector.append(num_days_violate_ICU_historical)
-                            seeds_vector.append(seed_j)
+                            # seeds_vector.append(seed_j)
                             # print(cost_j)
                             # print(num_days_violate_ICU)
                             # print(num_days_violate_ICU_historical)
@@ -242,7 +246,7 @@ def trigger_policy_search(instance,
                                 if len(stoch_outputs_i) == n_replicas_train:
                                     break
 
-                            breakpoint()
+                            # breakpoint()
 
                     else:
                         for sample_ij in out_sample_outputs:
@@ -312,6 +316,8 @@ def trigger_policy_search(instance,
     # np.savetxt("f_benchmark" + str(seed_j) + ".csv", np.array(f_benchmark), delimiter=",")
 
     # ===================================================================
+
+    print(time.time() - start)
 
     # Final evaluation of the best policy using sample filter for samples
     best_params['opt_phase'] = False  # not longer optimizing

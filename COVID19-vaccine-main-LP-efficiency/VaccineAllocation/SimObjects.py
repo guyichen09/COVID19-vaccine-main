@@ -17,20 +17,17 @@ class MultiTierPolicy:
             lockdown_thresholds (list of list): a list with the thresholds for every
                 tier. The list must have n-1 elements if there are n tiers. Each threshold
                 is a list of values for evert time step of simulation.
-            tier_type: functional form of the threshold (options are in THRESHOLD_TYPES)
             community_tranmission: (deprecated) CDC's old community tranmission threshold for staging.
                                     Not in use anymore.
     '''
 
-    def __init__(self, instance, tiers, lockdown_thresholds, tier_type, community_tranmission):
-        assert len(tiers) == len(lockdown_thresholds)
+    def __init__(self, instance, tiers, lockdown_thresholds, community_tranmission):
+        self._instance = instance
         self.tiers = tiers.tier
-        self.tier_type = tier_type
+
         self.community_tranmission = community_tranmission
         self.lockdown_thresholds = lockdown_thresholds
-
         self.tier_history = None
-        self._instance = instance
 
     def reset_tier_history(self):
         self.tier_history = None

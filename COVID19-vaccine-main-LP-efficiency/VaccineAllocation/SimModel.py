@@ -7,12 +7,11 @@ This module also contains functions to run the simulations in parallel
 and a class to properly define a calendar (SimCalendar).
 '''
 
-import datetime as dt
 import numpy as np
 from SimObjects import VaccineGroup
 import copy
 
-class SimulationReplication:
+class SimReplication:
     '''
     Simulates an SIR-type model with seven compartments, multiple age groups,
     and risk different age groups:
@@ -32,16 +31,21 @@ class SimulationReplication:
     def __init__(self, instance, vaccine, policy, rng_seed):
 
         self.instance = instance
-        self.vaccine = vaccine
-        self.rng_seed = rng_seed
-        self.types = "float"
         self.step_size = instance.config["step_size"]
+        self.t_historical_data_end = len(self.instance.real_hosp)
+        A = self.instance.A
+        L = self.instance.L
+
+        self.rng_seed = rng_seed
+        self.num_random_variates_used = 0
+
+        self.vaccine = vaccine
+        self.policy = policy
 
         self.define_epi()
         self.define_groups()
 
-        A = self.instance.A
-        L = self.instance.L
+        self.types = "float"
 
         self.ICU_history = [np.zeros((A, L), dtype=self.types)]
         self.IH_history = [np.zeros((A, L), dtype=self.types)]
@@ -49,13 +53,9 @@ class SimulationReplication:
         self.ToIHT_history = []
         self.ToIY_history = []
 
-        self.policy = policy
-
         # The next t that is simulated
         # This instance has simulated up to but not including time next_t
         self.next_t = 0
-
-        self.t_historical_data_end = len(self.instance.real_hosp)
 
     def compute_ICU_violation(self):
 
@@ -145,7 +145,7 @@ class SimulationReplication:
                 v_groups.S -= moving_people
                 self.vaccine_groups[3].S += moving_people
 
-    def simulate_time_period(self, time_start, time_end, data):
+    def simulate_time_period(self, time_start, time_end):
 
         for t in range(time_start, time_end):
 
@@ -520,6 +520,7 @@ class SimulationReplication:
         if self.rng_generator is None:
             return n * p
         else:
+            self.num_random_variates_used += 1
             if round_opt:
                 nInt = np.round(n)
                 return self.rng_generator.binomial(nInt.astype(int), p)
@@ -529,3 +530,4 @@ class SimulationReplication:
     def discrete_approx(self, rate, timestep):
         # return (1 - (1 - rate)**(1 / timestep))
         return (1 - np.exp(-rate / timestep))
+
