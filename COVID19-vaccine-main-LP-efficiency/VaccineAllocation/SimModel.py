@@ -12,21 +12,6 @@ from SimObjects import VaccineGroup
 import copy
 
 class SimReplication:
-    '''
-    Simulates an SIR-type model with seven compartments, multiple age groups,
-    and risk different age groups:
-    Compartments
-        S: Susceptible
-        E: Exposed
-        IY: Infected symptomatic
-        IA: Infected asymptomatic
-        IH: Infected hospitalized
-        ICU: Infected ICU
-        R: Recovered
-        D: Death
-    Connections between compartments:
-        S-E, E-IY, E-IA, IY-IH, IY-R, IA-R, IH-R, IH-ICU, ICU-D, ICU-R
-    '''
 
     def __init__(self, instance, vaccine, policy, rng_seed):
 
@@ -37,7 +22,6 @@ class SimReplication:
         L = self.instance.L
 
         self.rng_seed = rng_seed
-        self.num_random_variates_used = 0
 
         self.vaccine = vaccine
         self.policy = policy
@@ -45,10 +29,8 @@ class SimReplication:
         self.define_epi()
         self.define_groups()
 
-        self.types = "float"
-
-        self.ICU_history = [np.zeros((A, L), dtype=self.types)]
-        self.IH_history = [np.zeros((A, L), dtype=self.types)]
+        self.ICU_history = [np.zeros((A, L))]
+        self.IH_history = [np.zeros((A, L))]
 
         self.ToIHT_history = []
         self.ToIY_history = []
@@ -56,6 +38,9 @@ class SimReplication:
         # The next t that is simulated
         # This instance has simulated up to but not including time next_t
         self.next_t = 0
+
+        self.state_vars = ("S", "E", "IA", "IY", "PA", "PY", "R", "D", "IH", "ICU")
+        self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
 
     def compute_ICU_violation(self):
 
@@ -69,6 +54,10 @@ class SimReplication:
         IH_sim = IH_sim.sum(axis=(2, 1))
         IH_sim = IH_sim[:self.t_historical_data_end]
 
+        if self.next_t < self.t_historical_data_end:
+            IH_sim = IH_sim[:self.next_t]
+            f_benchmark = f_benchmark[:self.next_t]
+
         rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
             (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
 
@@ -76,18 +65,12 @@ class SimReplication:
 
     def define_epi(self):
 
-        self.rng_generator = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
+        self.rng = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
 
-        epi_orig = copy.deepcopy(self.instance.base_epi)
         epi_rand = copy.deepcopy(self.instance.base_epi)
+        epi_rand.sample_random_params(self.rng)
+        epi_rand.setup_base_params()
 
-        epi_rand.update_rnd_stream(self.rng_generator)
-        epi_orig.update_rnd_stream(None)
-
-        epi_rand.update_hosp_duration()
-        epi_orig.update_hosp_duration()
-
-        self.epi = epi_rand
         self.epi_rand = epi_rand
 
     def define_groups(self):
@@ -107,6 +90,7 @@ class SimReplication:
                  - after efficacy wanes, move to group 3 compartment.
                  - If booster shot is administered, move from group 3 compartment to group 2 compartment.
         '''
+
         self.vaccine_groups = []
         self.vaccine_groups.append(VaccineGroup('v_0', 0, 0, 0, 0, 0, self.instance))  # unvaccinated
         self.vaccine_groups.append(
@@ -127,20 +111,15 @@ class SimReplication:
             efficacy susceptible compartment after omicron become the prevelant
             virus type.
         '''
-        for idx, v_groups in enumerate(self.vaccine_groups):
-            if self.types == 'int':
-                moving_people = (v_groups._R[self.step_size] * immune_escape_rate).astype(int)
-            else:
-                moving_people = v_groups._R[self.step_size] * immune_escape_rate
+
+        for v_groups in self.vaccine_groups:
+            moving_people = v_groups._R[self.step_size] * immune_escape_rate
 
             v_groups.R -= moving_people
             self.vaccine_groups[3].S += moving_people
 
             if v_groups.v_name == 'v_1' or v_groups.v_name == 'v_2':
-                if self.types == 'int':
-                    moving_people = (v_groups._S[self.step_size] * immune_escape_rate).astype(int)
-                else:
-                    moving_people = v_groups._S[self.step_size] * immune_escape_rate
+                moving_people = v_groups._S[self.step_size] * immune_escape_rate
 
                 v_groups.S -= moving_people
                 self.vaccine_groups[3].S += moving_people
@@ -156,54 +135,14 @@ class SimReplication:
             A = self.instance.A
             L = self.instance.L
 
-            self.S = np.zeros((A, L), dtype=self.types)
-            self.E = np.zeros((A, L), dtype=self.types)
-            self.IA = np.zeros((A, L), dtype=self.types)
-            self.IY = np.zeros((A, L), dtype=self.types)
-            self.PA = np.zeros((A, L), dtype=self.types)
-            self.PY = np.zeros((A, L), dtype=self.types)
-            self.R = np.zeros((A, L), dtype=self.types)
-            self.D = np.zeros((A, L), dtype=self.types)
+            for attribute in self.state_vars + self.tracking_vars:
+                setattr(self, attribute, np.zeros((A, L)))
 
-            self.IH = np.zeros((A, L), dtype=self.types)
-            self.ICU = np.zeros((A, L), dtype=self.types)
-
-            # Additional tracking variables (for triggers)
-            self.IYIH = np.zeros((A, L))
-            self.IYICU = np.zeros((A, L))
-            self.IHICU = np.zeros((A, L))
-            self.ToICU = np.zeros((A, L))
-            self.ToIHT = np.zeros((A, L))
-            self.ToICUD = np.zeros((A, L))
-            self.ToIYD = np.zeros((A, L))
-            self.ToIA = np.zeros((A, L))
-            self.ToIY = np.zeros((A, L))
-
-            for v_group in self.vaccine_groups:
-
-                self.S += v_group.S
-                self.E += v_group.E
-                self.IA += v_group.IA
-                self.IY += v_group.IY
-                self.PA += v_group.PA
-                self.PY += v_group.PY
-                self.R += v_group.R
-                self.D += v_group.D
-
-                self.IH += v_group.IH
-                self.ICU += v_group.ICU
-
-                # Update daily values
-                self.IYIH += v_group.IYIH
-                self.IYICU += v_group.IYICU
-                self.IHICU += v_group.IHICU
-                self.ToICU += v_group.ToICU
-                self.ToIYD += v_group.ToIYD
-                self.ToICUD += v_group.ToICUD
-                self.ToIA += v_group.ToIA
-
-                self.ToIHT += v_group.ToIHT
-                self.ToIY += v_group.ToIY
+            for attribute in self.state_vars + self.tracking_vars:
+                sum_across_vaccine_groups = 0
+                for v_group in self.vaccine_groups:
+                    sum_across_vaccine_groups += getattr(v_group, attribute)
+                setattr(self, attribute, sum_across_vaccine_groups)
 
             self.ICU_history.append(self.ICU)
             self.IH_history.append(self.IH)
@@ -213,7 +152,7 @@ class SimReplication:
 
             total_imbalance = np.sum(self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU) - np.sum(self.instance.N)
 
-            assert np.abs(total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {calendar[t]}, {t}'
+            assert np.abs(total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {self.instance.cal.calendar[t]}, {t}'
 
     def simulate_t(self, t_date):
 
@@ -223,311 +162,308 @@ class SimReplication:
 
         calendar = self.instance.cal.calendar
 
-        for t_idx in range(1):
-            t = t_date
+        t = t_date
 
-            self.epi = copy.deepcopy(self.epi_rand)
+        epi = copy.deepcopy(self.epi_rand)
 
-            if t < len(self.instance.real_hosp):
-                phi_t = self.epi.effective_phi(self.instance.cal.schools_closed[t],
-                                       self.instance.cal.fixed_cocooning[t],
-                                       self.instance.cal.fixed_transmission_reduction[t],
-                                       N / N.sum(),
-                                       self.instance.cal.get_day_type(t))
-            else:
-                #  ToIHT, IH, ToIY, ICU
-                self.policy(t, self.ToIHT_history, self.IH_history, self.ToIY_history, self.ICU_history)
-                current_tier = self.policy.tier_history[t]
-                phi_t = self.epi.effective_phi(self.policy.tiers[current_tier]["school_closure"],
-                                       self.policy.tiers[current_tier]["cocooning"],
-                                       self.policy.tiers[current_tier]["transmission_reduction"],
-                                       N / N.sum(),
-                                       self.instance.cal.get_day_type(t))
+        if t < len(self.instance.real_hosp):
+            phi_t = epi.effective_phi(self.instance.cal.schools_closed[t],
+                                   self.instance.cal.fixed_cocooning[t],
+                                   self.instance.cal.fixed_transmission_reduction[t],
+                                   N / N.sum(),
+                                   self.instance.cal.get_day_type(t))
+        else:
+            #  ToIHT, IH, ToIY, ICU
+            self.policy(t, self.ToIHT_history, self.IH_history, self.ToIY_history, self.ICU_history)
+            current_tier = self.policy.tier_history[t]
+            phi_t = epi.effective_phi(self.policy.tiers[current_tier]["school_closure"],
+                                   self.policy.tiers[current_tier]["cocooning"],
+                                   self.policy.tiers[current_tier]["transmission_reduction"],
+                                   N / N.sum(),
+                                   self.instance.cal.get_day_type(t))
 
-            if calendar[t] >= self.instance.delta_start:
-                days_since_delta_start = (calendar[t] - self.instance.delta_start).days
-                for v_groups in self.vaccine_groups:
-                    v_groups.delta_update(self.instance.delta_prev[days_since_delta_start])
-                self.epi.delta_update_param(self.instance.delta_prev[days_since_delta_start])
+        if calendar[t] >= self.instance.delta_start:
+            days_since_delta_start = (calendar[t] - self.instance.delta_start).days
+            for v_groups in self.vaccine_groups:
+                v_groups.delta_update(self.instance.delta_prev[days_since_delta_start])
+            epi.delta_update_param(self.instance.delta_prev[days_since_delta_start])
 
-            #Update epi parameters for omicron:
-            if calendar[t] >= self.instance.omicron_start:
-                days_since_omicron_start = (calendar[t] - self.instance.omicron_start).days
-                self.epi.omicron_update_param(self.instance.omicron_prev[days_since_omicron_start])
-                for v_groups in self.vaccine_groups:
-                    v_groups.omicron_update(self.instance.omicron_prev[days_since_omicron_start])
+        #Update epi parameters for omicron:
+        if calendar[t] >= self.instance.omicron_start:
+            days_since_omicron_start = (calendar[t] - self.instance.omicron_start).days
+            epi.omicron_update_param(self.instance.omicron_prev[days_since_omicron_start])
+            for v_groups in self.vaccine_groups:
+                v_groups.omicron_update(self.instance.omicron_prev[days_since_omicron_start])
 
-            # Assume an imaginary new variant in May, 2022:
-            if self.epi.new_variant == True:
-                days_since_variant_start = (calendar[t] - self.instance.variant_start).days
-                if calendar[t] >= self.instance.variant_start:
-                    self.epi.variant_update_param(self.instance.variant_prev[days_since_variant_start])
+        # Assume an imaginary new variant in May, 2022:
+        if epi.new_variant == True:
+            days_since_variant_start = (calendar[t] - self.instance.variant_start).days
+            if calendar[t] >= self.instance.variant_start:
+                epi.variant_update_param(self.instance.variant_prev[days_since_variant_start])
 
-            if self.instance.otherInfo == {}:
-                if t > kwargs["rd_start"] and t <= kwargs["rd_end"]:
-                    self.epi.update_icu_params(kwargs["rd_rate"])
-            else:
-                self.epi.update_icu_all(t,self.instance.otherInfo)
+        if self.instance.otherInfo == {}:
+            if t > kwargs["rd_start"] and t <= kwargs["rd_end"]:
+                epi.update_icu_params(kwargs["rd_rate"])
+        else:
+            epi.update_icu_all(t,self.instance.otherInfo)
 
-            rate_E = self.discrete_approx(self.epi.sigma_E, self.step_size)
-            rate_IYR = self.discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * (1 - self.epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IYD = self.discrete_approx(np.array([[(1 - self.epi.pi[a, l]) * self.epi.gamma_IY * self.epi.alpha4 for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IAR = self.discrete_approx(np.tile(self.epi.gamma_IA, (L, A)).transpose(), self.step_size)
-            rate_PAIA = self.discrete_approx(np.tile(self.epi.rho_A, (L, A)).transpose(), self.step_size)
-            rate_PYIY = self.discrete_approx(np.tile(self.epi.rho_Y, (L, A)).transpose(), self.step_size)
-            rate_IYH = self.discrete_approx(np.array([[(self.epi.pi[a, l]) * self.epi.Eta[a] * self.epi.rIH for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IYICU = self.discrete_approx(np.array([[(self.epi.pi[a, l]) * self.epi.Eta[a] * (1 - self.epi.rIH) for l in range(L)] for a in range(A)]), self.step_size)
-            rate_IHICU = self.discrete_approx(self.epi.nu*self.epi.mu,self.step_size)
-            rate_IHR = self.discrete_approx((1 - self.epi.nu)*self.epi.gamma_IH, self.step_size)
-            rate_ICUD = self.discrete_approx(self.epi.nu_ICU*self.epi.mu_ICU, self.step_size)
-            rate_ICUR = self.discrete_approx((1 - self.epi.nu_ICU)*self.epi.gamma_ICU, self.step_size)
+        # sigma_E, pi, gamma_IY, gamma_IA, Eta, rIH, nu, mu, gamma_IH, nu_ICU, mu_ICU, gamma_ICU, omega_PY, omega_PA, omega_IA, omega_IY, beta
 
-            if t >= 711: #date corresponding to 02/07/2022
-                rate_immune = self.discrete_approx(self.epi.immune_evasion, self.step_size)
+        rate_E = self.discrete_approx(epi.sigma_E, self.step_size)
+        rate_IYR = self.discrete_approx(np.array([[(1 - epi.pi[a, l]) * epi.gamma_IY * (1 - epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
+        rate_IYD = self.discrete_approx(np.array([[(1 - epi.pi[a, l]) * epi.gamma_IY * epi.alpha4 for l in range(L)] for a in range(A)]), self.step_size)
+        rate_IAR = self.discrete_approx(np.tile(epi.gamma_IA, (L, A)).transpose(), self.step_size)
+        rate_PAIA = self.discrete_approx(np.tile(epi.rho_A, (L, A)).transpose(), self.step_size)
+        rate_PYIY = self.discrete_approx(np.tile(epi.rho_Y, (L, A)).transpose(), self.step_size)
+        rate_IYH = self.discrete_approx(np.array([[(epi.pi[a, l]) * epi.Eta[a] * epi.rIH for l in range(L)] for a in range(A)]), self.step_size)
+        rate_IYICU = self.discrete_approx(np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]), self.step_size)
+        rate_IHICU = self.discrete_approx(epi.nu*epi.mu,self.step_size)
+        rate_IHR = self.discrete_approx((1 - epi.nu)*epi.gamma_IH, self.step_size)
+        rate_ICUD = self.discrete_approx(epi.nu_ICU*epi.mu_ICU, self.step_size)
+        rate_ICUR = self.discrete_approx((1 - epi.nu_ICU)*epi.gamma_ICU, self.step_size)
 
-            for _t in range(self.step_size):
-                # Dynamics for dS
+        if t >= 711: #date corresponding to 02/07/2022
+            rate_immune = self.discrete_approx(epi.immune_evasion, self.step_size)
 
-                for v_groups in self.vaccine_groups:
+        for _t in range(self.step_size):
+            # Dynamics for dS
 
-                    dSprob_sum = np.zeros((5,2))
+            for v_groups in self.vaccine_groups:
 
-                    for v_groups_temp in self.vaccine_groups:
+                dSprob_sum = np.zeros((5,2))
 
-                        # Vectorized version for efficiency. For-loop version commented below
-                        temp1 = np.matmul(np.diag(self.epi.omega_PY), v_groups_temp._PY[_t, :, :]) + \
-                            np.matmul(np.diag(self.epi.omega_PA), v_groups_temp._PA[_t, :, :]) + \
-                                self.epi.omega_IA * v_groups_temp._IA[_t, :, :] + \
-                                    self.epi.omega_IY * v_groups_temp._IY[_t, :, :]
+                for v_groups_temp in self.vaccine_groups:
 
-                        temp2 = np.sum(N, axis=1)[np.newaxis].T
-                        temp3 = np.divide(np.multiply(self.epi.beta * phi_t / self.step_size, temp1), temp2)
+                    # Vectorized version for efficiency. For-loop version commented below
+                    temp1 = np.matmul(np.diag(epi.omega_PY), v_groups_temp._PY[_t, :, :]) + \
+                        np.matmul(np.diag(epi.omega_PA), v_groups_temp._PA[_t, :, :]) + \
+                            epi.omega_IA * v_groups_temp._IA[_t, :, :] + \
+                                epi.omega_IY * v_groups_temp._IY[_t, :, :]
 
-                        dSprob = np.sum(temp3, axis=(2, 3))
-                        dSprob_sum = dSprob_sum + dSprob
+                    temp2 = np.sum(N, axis=1)[np.newaxis].T
+                    temp3 = np.divide(np.multiply(epi.beta * phi_t / self.step_size, temp1), temp2)
 
-                    if t >= 711 and v_groups.v_name == 'v_2':#date corresponding to 02/07/2022
-                        _dS = self.rv_gen(v_groups._S[_t], rate_immune + (1 - v_groups.v_beta_reduct)*dSprob_sum)
-                            # Dynamics for E
-                        if self.types == 'int':
-                            _dSE = np.round( _dS * ((1 - v_groups.v_beta_reduct)*dSprob_sum) / (rate_immune + (1 - v_groups.v_beta_reduct)*dSprob_sum))
-                        else:
-                            _dSE = _dS * ((1 - v_groups.v_beta_reduct)*dSprob_sum) / (rate_immune + (1 - v_groups.v_beta_reduct)*dSprob_sum)
+                    dSprob = np.sum(temp3, axis=(2, 3))
+                    dSprob_sum = dSprob_sum + dSprob
 
-                        E_out = self.rv_gen(v_groups._E[_t], rate_E)
-                        v_groups._E[_t + 1] = v_groups._E[_t] + _dSE - E_out
+                if t >= 711 and v_groups.v_name == 'v_2':#date corresponding to 02/07/2022
+                    _dS = self.rv_gen(v_groups._S[_t], rate_immune + (1 - v_groups.v_beta_reduct)*dSprob_sum)
+                    # Dynamics for E
+                    _dSE = _dS * ((1 - v_groups.v_beta_reduct)*dSprob_sum) / (rate_immune + (1 - v_groups.v_beta_reduct)*dSprob_sum)
 
-                        _dSR = _dS - _dSE
-                        self.vaccine_groups[3]._S[_t + 1] = self.vaccine_groups[3]._S[_t + 1] + _dSR
+                    E_out = self.rv_gen(v_groups._E[_t], rate_E)
+                    v_groups._E[_t + 1] = v_groups._E[_t] + _dSE - E_out
 
-                    else:
-                        _dS = self.rv_gen(v_groups._S[_t], (1 - v_groups.v_beta_reduct)*dSprob_sum)
-                        # Dynamics for E
-                        E_out = self.rv_gen(v_groups._E[_t], rate_E)
-                        v_groups._E[_t + 1] = v_groups._E[_t] + _dS - E_out
+                    _dSR = _dS - _dSE
+                    self.vaccine_groups[3]._S[_t + 1] = self.vaccine_groups[3]._S[_t + 1] + _dSR
 
-                    if t >= 711 and v_groups.v_name != 'v_3':
-                        immune_escape_R = self.rv_gen(v_groups._R[_t], rate_immune)
-                        self.vaccine_groups[3]._S[_t + 1] = self.vaccine_groups[3]._S[_t + 1] + immune_escape_R
+                else:
+                    _dS = self.rv_gen(v_groups._S[_t], (1 - v_groups.v_beta_reduct)*dSprob_sum)
+                    # Dynamics for E
+                    E_out = self.rv_gen(v_groups._E[_t], rate_E)
+                    v_groups._E[_t + 1] = v_groups._E[_t] + _dS - E_out
 
-                    v_groups._S[_t + 1] = v_groups._S[_t + 1] + v_groups._S[_t] - _dS
+                if t >= 711 and v_groups.v_name != 'v_3':
+                    immune_escape_R = self.rv_gen(v_groups._R[_t], rate_immune)
+                    self.vaccine_groups[3]._S[_t + 1] = self.vaccine_groups[3]._S[_t + 1] + immune_escape_R
 
-                    # Dynamics for PY
-                    EPY = self.rv_gen(E_out, self.epi.tau * ( 1 - v_groups.v_tau_reduct))
-                    PYIY = self.rv_gen(v_groups._PY[_t], rate_PYIY)
-                    v_groups._PY[_t + 1] = v_groups._PY[_t] + EPY - PYIY
+                v_groups._S[_t + 1] = v_groups._S[_t + 1] + v_groups._S[_t] - _dS
 
-                    # Dynamics for PA
-                    EPA = E_out - EPY
-                    PAIA = self.rv_gen(v_groups._PA[_t], rate_PAIA)
-                    v_groups._PA[_t + 1] = v_groups._PA[_t] + EPA - PAIA
+                # Dynamics for PY
+                EPY = self.rv_gen(E_out, epi.tau * ( 1 - v_groups.v_tau_reduct))
+                PYIY = self.rv_gen(v_groups._PY[_t], rate_PYIY)
+                v_groups._PY[_t + 1] = v_groups._PY[_t] + EPY - PYIY
 
-                    # Dynamics for IA
-                    IAR = self.rv_gen(v_groups._IA[_t], rate_IAR)
-                    v_groups._IA[_t + 1] = v_groups._IA[_t] + PAIA - IAR
+                # Dynamics for PA
+                EPA = E_out - EPY
+                PAIA = self.rv_gen(v_groups._PA[_t], rate_PAIA)
+                v_groups._PA[_t + 1] = v_groups._PA[_t] + EPA - PAIA
 
-                    # Dynamics for IY
-                    IYR = self.rv_gen(v_groups._IY[_t], rate_IYR)
-                    IYD = self.rv_gen(v_groups._IY[_t] - IYR, rate_IYD)
-                    v_groups._IYIH[_t] = self.rv_gen(v_groups._IY[_t] - IYR - IYD, rate_IYH)
-                    v_groups._IYICU[_t] = self.rv_gen(v_groups._IY[_t] - IYR - IYD - v_groups._IYIH[_t], rate_IYICU)
-                    v_groups._IY[_t + 1] = v_groups._IY[_t] + PYIY - IYR - IYD - v_groups._IYIH[_t] - v_groups._IYICU[_t]
+                # Dynamics for IA
+                IAR = self.rv_gen(v_groups._IA[_t], rate_IAR)
+                v_groups._IA[_t + 1] = v_groups._IA[_t] + PAIA - IAR
 
-                    # Dynamics for IH
-                    IHR = self.rv_gen(v_groups._IH[_t], rate_IHR)
-                    v_groups._IHICU[_t] = self.rv_gen(v_groups._IH[_t] - IHR, rate_IHICU)
-                    v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - v_groups._IHICU[_t]
+                # Dynamics for IY
+                IYR = self.rv_gen(v_groups._IY[_t], rate_IYR)
+                IYD = self.rv_gen(v_groups._IY[_t] - IYR, rate_IYD)
+                v_groups._IYIH[_t] = self.rv_gen(v_groups._IY[_t] - IYR - IYD, rate_IYH)
+                v_groups._IYICU[_t] = self.rv_gen(v_groups._IY[_t] - IYR - IYD - v_groups._IYIH[_t], rate_IYICU)
+                v_groups._IY[_t + 1] = v_groups._IY[_t] + PYIY - IYR - IYD - v_groups._IYIH[_t] - v_groups._IYICU[_t]
 
-                    # Dynamics for ICU
-                    ICUR = self.rv_gen(v_groups._ICU[_t], rate_ICUR)
-                    ICUD = self.rv_gen(v_groups._ICU[_t] - ICUR, rate_ICUD)
-                    v_groups._ICU[_t + 1] = v_groups._ICU[_t] + v_groups._IHICU[_t] - ICUD - ICUR + v_groups._IYICU[_t]
-                    v_groups._ToICU[_t] = v_groups._IYICU[_t] + v_groups._IHICU[_t]
-                    v_groups._ToIHT[_t] = v_groups._IYICU[_t] + v_groups._IYIH[_t]
+                # Dynamics for IH
+                IHR = self.rv_gen(v_groups._IH[_t], rate_IHR)
+                v_groups._IHICU[_t] = self.rv_gen(v_groups._IH[_t] - IHR, rate_IHICU)
+                v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - v_groups._IHICU[_t]
 
-                    # Dynamics for R
-                    if t >= 711 and v_groups.v_name != 'v_3':
-                        v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR - immune_escape_R
-                    else:
-                        v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR
+                # Dynamics for ICU
+                ICUR = self.rv_gen(v_groups._ICU[_t], rate_ICUR)
+                ICUD = self.rv_gen(v_groups._ICU[_t] - ICUR, rate_ICUD)
+                v_groups._ICU[_t + 1] = v_groups._ICU[_t] + v_groups._IHICU[_t] - ICUD - ICUR + v_groups._IYICU[_t]
+                v_groups._ToICU[_t] = v_groups._IYICU[_t] + v_groups._IHICU[_t]
+                v_groups._ToIHT[_t] = v_groups._IYICU[_t] + v_groups._IYIH[_t]
 
-                    # Dynamics for D
-                    v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD
-                    v_groups._ToICUD[_t] = ICUD
-                    v_groups._ToIYD[_t] = IYD
-                    v_groups._ToIA[_t] = PAIA
-                    v_groups._ToIY[_t] = PYIY
+                # Dynamics for R
+                if t >= 711 and v_groups.v_name != 'v_3':
+                    v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR - immune_escape_R
+                else:
+                    v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR
 
-            for idx, v_groups in enumerate(self.vaccine_groups):
-                # End of the daily disctretization
-                v_groups.S = v_groups._S[self.step_size].copy()
-                v_groups.E = v_groups._E[self.step_size].copy()
-                v_groups.IA = v_groups._IA[self.step_size].copy()
-                v_groups.IY = v_groups._IY[self.step_size].copy()
-                v_groups.PA = v_groups._PA[self.step_size].copy()
-                v_groups.PY = v_groups._PY[self.step_size].copy()
-                v_groups.R = v_groups._R[self.step_size].copy()
-                v_groups.D = v_groups._D[self.step_size].copy()
+                # Dynamics for D
+                v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD
+                v_groups._ToICUD[_t] = ICUD
+                v_groups._ToIYD[_t] = IYD
+                v_groups._ToIA[_t] = PAIA
+                v_groups._ToIY[_t] = PYIY
 
-                v_groups.IH = v_groups._IH[self.step_size].copy()
-                v_groups.ICU = v_groups._ICU[self.step_size].copy()
+        for v_groups in self.vaccine_groups:
+            # End of the daily disctretization
+            for attribute in self.state_vars:
+                setattr(v_groups, attribute, getattr(v_groups, "_" + attribute)[self.step_size].copy())
 
-                v_groups.IYIH = v_groups._IYIH.sum(axis=0)
-                v_groups.IYICU = v_groups._IYICU.sum(axis=0)
-                v_groups.IHICU = v_groups._IHICU.sum(axis=0)
-                v_groups.ToICU = v_groups._ToICU.sum(axis=0)
-                v_groups.ToIHT = v_groups._ToIHT.sum(axis=0)
-                v_groups.ToICUD = v_groups._ToICUD.sum(axis=0)
-                v_groups.ToIYD = v_groups._ToIYD.sum(axis=0)
-                v_groups.ToIY = v_groups._ToIY.sum(axis=0)
-                v_groups.ToIA = v_groups._ToIA.sum(axis=0)
+            for attribute in self.tracking_vars:
+                setattr(v_groups, attribute, getattr(v_groups, "_" + attribute).sum(axis=0))
 
-            if calendar[t] == self.instance.omicron_start:
-                # Move almost half of the people from recovered to susceptible:
-                self.immune_escape(self.epi.immune_escape_rate, t)
+            # v_groups.S = v_groups._S[self.step_size].copy()
+            # v_groups.E = v_groups._E[self.step_size].copy()
+            # v_groups.IA = v_groups._IA[self.step_size].copy()
+            # v_groups.IY = v_groups._IY[self.step_size].copy()
+            # v_groups.PA = v_groups._PA[self.step_size].copy()
+            # v_groups.PY = v_groups._PY[self.step_size].copy()
+            # v_groups.R = v_groups._R[self.step_size].copy()
+            # v_groups.D = v_groups._D[self.step_size].copy()
+            # v_groups.IH = v_groups._IH[self.step_size].copy()
+            # v_groups.ICU = v_groups._ICU[self.step_size].copy()
+            #
+            # v_groups.IYIH = v_groups._IYIH.sum(axis=0)
+            # v_groups.IYICU = v_groups._IYICU.sum(axis=0)
+            # v_groups.IHICU = v_groups._IHICU.sum(axis=0)
+            # v_groups.ToICU = v_groups._ToICU.sum(axis=0)
+            # v_groups.ToIHT = v_groups._ToIHT.sum(axis=0)
+            # v_groups.ToICUD = v_groups._ToICUD.sum(axis=0)
+            # v_groups.ToIYD = v_groups._ToIYD.sum(axis=0)
+            # v_groups.ToIY = v_groups._ToIY.sum(axis=0)
+            # v_groups.ToIA = v_groups._ToIA.sum(axis=0)
 
-            if t >= self.vaccine.vaccine_start_time:
+        if calendar[t] == self.instance.omicron_start:
+            # Move almost half of the people from recovered to susceptible:
+            self.immune_escape(epi.immune_escape_rate, t)
 
-                S_before = np.zeros((5, 2))
+        if t >= self.vaccine.vaccine_start_time:
 
-                for idx, v_groups in enumerate(self.vaccine_groups):
-                    S_before += v_groups.S
+            S_before = np.zeros((5, 2))
 
-                for idx, v_groups in enumerate(self.vaccine_groups):
+            for v_groups in self.vaccine_groups:
+                S_before += v_groups.S
 
-                    out_sum = np.zeros((A, L))
-                    S_out = np.zeros((A*L, 1))
-                    N_out = np.zeros((A*L, 1))
+            for v_groups in self.vaccine_groups:
 
-                    for vaccine_type in v_groups.v_out:
-                        event = self.vaccine.event_lookup(vaccine_type, calendar[t])
+                out_sum = np.zeros((A, L))
+                S_out = np.zeros((A*L, 1))
+                N_out = np.zeros((A*L, 1))
 
-                        if event is not None:
+                for vaccine_type in v_groups.v_out:
+                    event = self.vaccine.event_lookup(vaccine_type, calendar[t])
 
-                            S_out = np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
-                            if calendar[t] >= self.instance.omicron_start:
-                                if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
-                                    S_out = self.epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
+                    if event is not None:
 
-                            N_out = self.vaccine.get_num_eligible(N, A * L, v_groups.v_name, v_groups.v_in, v_groups.v_out, calendar[t])
+                        S_out = np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
+                        if calendar[t] >= self.instance.omicron_start:
+                            if v_groups.v_name == "v_1" or v_groups.v_name == "v_2":
+                                S_out = epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
+                        N_out = self.vaccine.get_num_eligible(N, A * L, v_groups.v_name, v_groups.v_in, v_groups.v_out, calendar[t])
 
-                            if self.types == 'int':
-                                out_sum += np.round(ratio_S_N*v_groups._S[self.step_size])
-                            else:
-                                out_sum += ratio_S_N*v_groups._S[self.step_size]
+                        ratio_S_N = np.array([0 if N_out[i] == 0 else float(S_out[i]/N_out[i]) for i in range(len(N_out))]).reshape((A, L))
 
-                    in_sum = np.zeros((A, L))
-                    S_in = np.zeros((A*L, 1))
-                    N_in = np.zeros((A*L, 1))
+                        out_sum += ratio_S_N*v_groups._S[self.step_size]
 
-                    for vaccine_type in v_groups.v_in:
+                in_sum = np.zeros((A, L))
+                S_in = np.zeros((A*L, 1))
+                N_in = np.zeros((A*L, 1))
 
-                        for v_g in self.vaccine_groups:
-                            if v_g.v_name == self.vaccine.vaccine_allocation[vaccine_type][0]["from"]:
-                                v_temp = v_g
+                for vaccine_type in v_groups.v_in:
 
-                        event = self.vaccine.event_lookup(vaccine_type, calendar[t])
+                    for v_g in self.vaccine_groups:
+                        if v_g.v_name == self.vaccine.vaccine_allocation[vaccine_type][0]["from"]:
+                            v_temp = v_g
 
-                        if event is not None:
-                            S_in = np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
+                    event = self.vaccine.event_lookup(vaccine_type, calendar[t])
 
-                            if calendar[t] >= self.instance.omicron_start:
-                                if (v_groups.v_name == "v_3" and v_temp.v_name == "v_2") or (v_groups.v_name == "v_2" and v_temp.v_name == "v_1"):
-                                    S_in = self.epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
+                    if event is not None:
+                        S_in = np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            N_in = self.vaccine.get_num_eligible(N, A * L, v_temp.v_name, v_temp.v_in, v_temp.v_out, calendar[t])
-                            ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
+                        if calendar[t] >= self.instance.omicron_start:
+                            if (v_groups.v_name == "v_3" and v_temp.v_name == "v_2") or (v_groups.v_name == "v_2" and v_temp.v_name == "v_1"):
+                                S_in = epi.immune_escape_rate * np.reshape(self.vaccine.vaccine_allocation[vaccine_type][event]["assignment"], (A*L, 1))
 
-                            if self.types == 'int':
-                                in_sum += np.round(ratio_S_N*v_temp._S[self.step_size])
-                            else:
-                                in_sum += ratio_S_N*v_temp._S[self.step_size]
+                        N_in = self.vaccine.get_num_eligible(N, A * L, v_temp.v_name, v_temp.v_in, v_temp.v_out, calendar[t])
+                        ratio_S_N = np.array([0 if N_in[i] == 0 else float(S_in[i]/N_in[i]) for i in range(len(N_in))]).reshape((A, L))
 
-                    if self.types == "float":
-                        v_groups.S = v_groups.S + (np.array(in_sum - out_sum))
-                    else:
-                        out_sum = np.round(out_sum)
-                        in_sum = np.round(in_sum)
-                        v_groups.S = v_groups.S + np.round(np.array(in_sum - out_sum))
+                        in_sum += ratio_S_N*v_temp._S[self.step_size]
 
-                    S_after = np.zeros((5, 2))
+                v_groups.S = v_groups.S + (np.array(in_sum - out_sum))
 
-                for idx, v_groups in enumerate(self.vaccine_groups):
-                    S_after += v_groups.S
+                S_after = np.zeros((5, 2))
 
-                imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
+            for v_groups in self.vaccine_groups:
+                S_after += v_groups.S
 
-                assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {calendar[t]}, {t}'
+            imbalance = np.abs(np.sum(S_before - S_after, axis = (0,1)))
 
-            for idx, v_groups in enumerate(self.vaccine_groups):
-                v_groups._S = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._E = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._IA = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._IY = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._PA = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._PY = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._IH = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._ICU = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._R = np.zeros((self.step_size + 1, A, L), dtype=self.types)
-                v_groups._D = np.zeros((self.step_size + 1, A, L), dtype=self.types)
+            assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {calendar[t]}, {t}'
 
-                v_groups._IYIH = np.zeros((self.step_size, A, L))
-                v_groups._IYICU = np.zeros((self.step_size, A, L))
-                v_groups._IHICU = np.zeros((self.step_size, A, L))
-                v_groups._ToICU = np.zeros((self.step_size, A, L))
-                v_groups._ToIHT = np.zeros((self.step_size, A, L))
-                v_groups._ToICUD = np.zeros((self.step_size, A, L))
-                v_groups._ToIYD = np.zeros((self.step_size, A, L))
-                v_groups._ToIA = np.zeros((self.step_size, A, L))
-                v_groups._ToIY = np.zeros((self.step_size, A, L))
+        for v_groups in self.vaccine_groups:
 
-                v_groups._S[0] = v_groups.S
-                v_groups._E[0] = v_groups.E
-                v_groups._IA[0] = v_groups.IA
-                v_groups._IY[0] = v_groups.IY
-                v_groups._PA[0] = v_groups.PA
-                v_groups._PY[0] = v_groups.PY
-                v_groups._R[0] = v_groups.R
-                v_groups._D[0] = v_groups.D
+            for attribute in self.state_vars:
+                setattr(v_groups, "_" + attribute, np.zeros((self.step_size + 1, A, L)))
+                vars(v_groups)["_" + attribute][0] = vars(v_groups)[attribute]
 
-                v_groups._IH[0] = v_groups.IH
-                v_groups._ICU[0] = v_groups.ICU
+            for attribute in self.tracking_vars:
+                setattr(v_groups, "_" + attribute, np.zeros((self.step_size, A, L)))
+
+            # v_groups._S = np.zeros((self.step_size + 1, A, L))
+            # v_groups._E = np.zeros((self.step_size + 1, A, L))
+            # v_groups._IA = np.zeros((self.step_size + 1, A, L))
+            # v_groups._IY = np.zeros((self.step_size + 1, A, L))
+            # v_groups._PA = np.zeros((self.step_size + 1, A, L))
+            # v_groups._PY = np.zeros((self.step_size + 1, A, L))
+            # v_groups._IH = np.zeros((self.step_size + 1, A, L))
+            # v_groups._ICU = np.zeros((self.step_size + 1, A, L))
+            # v_groups._R = np.zeros((self.step_size + 1, A, L))
+            # v_groups._D = np.zeros((self.step_size + 1, A, L))
+
+            # v_groups._IYIH = np.zeros((self.step_size, A, L))
+            # v_groups._IYICU = np.zeros((self.step_size, A, L))
+            # v_groups._IHICU = np.zeros((self.step_size, A, L))
+            # v_groups._ToICU = np.zeros((self.step_size, A, L))
+            # v_groups._ToIHT = np.zeros((self.step_size, A, L))
+            # v_groups._ToICUD = np.zeros((self.step_size, A, L))
+            # v_groups._ToIYD = np.zeros((self.step_size, A, L))
+            # v_groups._ToIA = np.zeros((self.step_size, A, L))
+            # v_groups._ToIY = np.zeros((self.step_size, A, L))
+
+            # v_groups._S[0] = v_groups.S
+            # v_groups._E[0] = v_groups.E
+            # v_groups._IA[0] = v_groups.IA
+            # v_groups._IY[0] = v_groups.IY
+            # v_groups._PA[0] = v_groups.PA
+            # v_groups._PY[0] = v_groups.PY
+            # v_groups._R[0] = v_groups.R
+            # v_groups._D[0] = v_groups.D
+            # v_groups._IH[0] = v_groups.IH
+            # v_groups._ICU[0] = v_groups.ICU
 
     def rv_gen(self, n, p, round_opt=1):
 
-        if self.rng_generator is None:
+        if self.rng is None:
             return n * p
         else:
-            self.num_random_variates_used += 1
             if round_opt:
                 nInt = np.round(n)
-                return self.rng_generator.binomial(nInt.astype(int), p)
+                return self.rng.binomial(nInt.astype(int), p)
             else:
-                return self.rng_generator.binomial(n, p)
+                return self.rng.binomial(n, p)
 
     def discrete_approx(self, rate, timestep):
-        # return (1 - (1 - rate)**(1 / timestep))
         return (1 - np.exp(-rate / timestep))
 

@@ -21,11 +21,11 @@ class MultiTierPolicy:
                                     Not in use anymore.
     '''
 
-    def __init__(self, instance, tiers, lockdown_thresholds, community_tranmission):
+    def __init__(self, instance, tiers, lockdown_thresholds, community_transmission):
         self._instance = instance
         self.tiers = tiers.tier
 
-        self.community_tranmission = community_tranmission
+        self.community_transmission = community_transmission
         self.lockdown_thresholds = lockdown_thresholds
         self.tier_history = None
 
@@ -90,8 +90,8 @@ class MultiTierPolicy:
 
         new_tier = lb_threshold
 
-        # Check if community tranmission rate is included:
-        if self.community_tranmission == "blue":
+        # Check if community_tranmission rate is included:
+        if self.community_transmission == "blue":
             if new_tier == 0:
                 if ToIY_avg > 5:
                     if ToIY_avg < 10:
@@ -101,7 +101,7 @@ class MultiTierPolicy:
             elif new_tier == 1:
                 if ToIY_avg > 10:
                     new_tier = 2
-        elif self.community_tranmission == "green":
+        elif self.community_transmission == "green":
             if new_tier == 0:
                 if ToIY_avg > 5:
                     if ToIY_avg < 10:
@@ -170,55 +170,21 @@ class VaccineGroup:
 
         self.N = instance.N
         self.I0 = instance.I0
-        self.A = instance.A
-        self.L = instance.L
-        self.age_risk_matrix_shape = (self.A, self.L)
-        self.types = "float"
 
+        A = instance.A
+        L = instance.L
         step_size = instance.config['step_size']
 
-        self.S = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.E = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.IA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.IY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.PA = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.PY = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.R = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.D = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        self.state_vars = ("S", "E", "IA", "IY", "PA", "PY", "R", "D", "IH", "ICU")
+        self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
 
-        self.IH = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
-        self.ICU = np.zeros(self.age_risk_matrix_shape, dtype=self.types)
+        for attribute in self.state_vars:
+            setattr(self, attribute, np.zeros((A, L)))
+            setattr(self, "_" + attribute, np.zeros((step_size + 1, A, L)))
 
-        self.IYIH = np.zeros(self.age_risk_matrix_shape)
-        self.IYICU = np.zeros(self.age_risk_matrix_shape)
-        self.IHICU = np.zeros(self.age_risk_matrix_shape)
-        self.ToICU = np.zeros(self.age_risk_matrix_shape)
-        self.ToIHT = np.zeros(self.age_risk_matrix_shape)
-        self.ToICUD = np.zeros(self.age_risk_matrix_shape)
-        self.ToIYD = np.zeros(self.age_risk_matrix_shape)
-        self.ToIA = np.zeros(self.age_risk_matrix_shape)
-        self.ToIY = np.zeros(self.age_risk_matrix_shape)
-
-        self._S = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._E = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._IA = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._IY = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._PA = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._PY = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._IH = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._ICU = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._R = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-        self._D = np.zeros((step_size + 1, self.A, self.L), dtype=self.types)
-
-        self._IYIH = np.zeros((step_size, self.A, self.L))
-        self._IYICU = np.zeros((step_size, self.A, self.L))
-        self._IHICU = np.zeros((step_size, self.A, self.L))
-        self._ToICU = np.zeros((step_size, self.A, self.L))
-        self._ToIHT = np.zeros((step_size, self.A, self.L))
-        self._ToICUD = np.zeros((step_size, self.A, self.L))
-        self._ToIYD = np.zeros((step_size, self.A, self.L))
-        self._ToIA = np.zeros((step_size, self.A, self.L))
-        self._ToIY = np.zeros((step_size, self.A, self.L))
+        for attribute in self.tracking_vars:
+            setattr(self, attribute, np.zeros((A, L)))
+            setattr(self, "_" + attribute, np.zeros((step_size, A, L)))
 
         if self.v_name == 'v_0':
             # Initial Conditions (assumed)
@@ -226,17 +192,8 @@ class VaccineGroup:
             self.R = 0
             self.S = self.N - self.PY - self.IY
 
-        self._S[0] = self.S
-        self._E[0] = self.E
-        self._IA[0] = self.IA
-        self._IY[0] = self.IY
-        self._PA[0] = self.PA
-        self._PY[0] = self.PY
-        self._R[0] = self.R
-        self._D[0] = self.D
-
-        self._IH[0] = self.IH
-        self._ICU[0] = self.ICU
+        for attribute in self.state_vars:
+            vars(self)["_" + attribute][0] = getattr(self, attribute)
 
     def delta_update(self, prev):
         '''

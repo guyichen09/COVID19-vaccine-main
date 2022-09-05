@@ -316,19 +316,6 @@ class City:
         # Save calendar
         self.cal = cal
 
-    @property
-    def summary(self):
-        return (
-            self.T,
-            self.A,
-            self.L,
-            self.N,
-            self.I0,
-            self.hosp_beds,
-            self.lambda_star,
-            self.cal,
-        )
-
 class TierInfo:
     def __init__(self, city, tier_filename):
         self.path_to_data = base_path / "instances" / f"{city}"
@@ -588,7 +575,8 @@ class EpiSetup:
                                        'qRate': {'IY': 0, 'IA': 0, 'PY': 0, 'PA': 0},
                                        'randTest': 0})
 
-        self.num_random_params = 0
+        # Parameters that are randomly sampled for each replication
+        self.random_params_dict = {}
 
     def load_file(self, params):
         for (k, v) in params.items():
@@ -600,23 +588,21 @@ class EpiSetup:
             else:
                 setattr(self, k, v)
 
-    def update_rnd_stream(self, rnd_stream):
+    def sample_random_params(self, rng):
         '''
             Generates random parametes from a given random stream.
             Coupled parameters are updated as well.
             Args:
-                rnd_stream (RandomState): a RandomState instance from numpy.
+                rng (RandomState): a RandomState instance from numpy.
         '''
 
-        # rnd_stream = None  #rnd_stream
+        # rng = None  #rng
         tempRecord = {}
         for k in vars(self):
             v = getattr(self, k)
             # if the attribute is random variable, generate a deterministic version
             if isinstance(v, ParamDistribution):
-                tempRecord[v.param_name] = v.sample(rnd_stream)
-                if rnd_stream is not None:
-                    self.num_random_params += 1
+                tempRecord[v.param_name] = v.sample(rng)
             elif isinstance(v, np.ndarray):
                 listDistrn = True
                 # if it is a list of random variable, generate a list of deterministic values
@@ -626,9 +612,7 @@ class EpiSetup:
                 for vItem in v:
                     try:
                         vValue = ParamDistribution(*vItem)
-                        outList.append(vValue.sample(rnd_stream))
-                        if rnd_stream is not None:
-                            self.num_random_params += 1
+                        outList.append(vValue.sample(rng))
                         outName = vValue.param_name
                     except:
                         vValue = 0
@@ -637,8 +621,12 @@ class EpiSetup:
                 if listDistrn:
                     tempRecord[outName] = np.array(outList)
 
+        self.random_params_dict = tempRecord
+
         for k in tempRecord.keys():
             setattr(self, k, tempRecord[k])
+
+    def setup_base_params(self):
 
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
                                                               (1 - self.YHR_overall[a]) / self.gamma_IY) +
@@ -679,6 +667,10 @@ class EpiSetup:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH - self.mu) * self.HFR)
 
         self.beta = self.beta0
+
+        self.gamma_ICU = self.gamma_ICU0 * (1 + self.alpha1)
+        self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3)
+        self.gamma_IH = self.gamma_IH0 * (1 - self.alpha2)
 
     def delta_update_param(self, prev):
         '''
@@ -789,6 +781,30 @@ class EpiSetup:
         '''
         self.beta = self.beta * (1 - prev) + self.beta * (self.new_variant_beta) * prev  # increased transmission
 
+    def update_icu_params(self, rdrate):
+        # update the ICU admission parameter HICUR and update nu
+        self.HICUR = self.HICUR * rdrate
+        self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
+        self.rIH = 1 - (1 - self.rIH) * rdrate
+
+    def update_icu_all(self, t, otherInfo):
+        if 'rIH' in otherInfo.keys():
+            if t in otherInfo['rIH'].keys():
+                self.rIH = otherInfo['rIH'][t]
+            else:
+                self.rIH = self.rIH0
+        if 'HICUR' in otherInfo.keys():
+            if t in otherInfo['HICUR'].keys():
+                self.HICUR = otherInfo['HICUR'][t]
+            else:
+                self.HICUR = self.HICUR0
+        if 'mu' in otherInfo.keys():
+            if t in otherInfo['mu'].keys():
+                self.mu = self.mu0.copy() / otherInfo['mu'][t]
+            else:
+                self.mu = self.mu0.copy()
+        self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
+
     def effective_phi(self, school, cocooning, social_distance, demographics, day_type):
         '''
             school (int): yes (1) / no (0) schools are closed
@@ -850,35 +866,6 @@ class EpiSetup:
             assert (phi_age_risk >= 0).all()
             return phi_age_risk
 
-    def update_hosp_duration(self):
-        self.gamma_ICU = self.gamma_ICU0 * (1 + self.alpha1)
-        self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3)
-        self.gamma_IH = self.gamma_IH0 * (1 - self.alpha2)
-
-    def update_icu_params(self, rdrate):
-        # update the ICU admission parameter HICUR and update nu
-        self.HICUR = self.HICUR * rdrate
-        self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-        self.rIH = 1 - (1 - self.rIH) * rdrate
-
-    def update_icu_all(self, t, otherInfo):
-        if 'rIH' in otherInfo.keys():
-            if t in otherInfo['rIH'].keys():
-                self.rIH = otherInfo['rIH'][t]
-            else:
-                self.rIH = self.rIH0
-        if 'HICUR' in otherInfo.keys():
-            if t in otherInfo['HICUR'].keys():
-                self.HICUR = otherInfo['HICUR'][t]
-            else:
-                self.HICUR = self.HICUR0
-        if 'mu' in otherInfo.keys():
-            if t in otherInfo['mu'].keys():
-                self.mu = self.mu0.copy() / otherInfo['mu'][t]
-            else:
-                self.mu = self.mu0.copy()
-        self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-
 class ParamDistribution:
     '''
         A class to encapsulate epi paramters that are random
@@ -900,15 +887,15 @@ class ParamDistribution:
         self.det_val = det_val
         self.params = params
 
-    def sample(self, rnd_stream, dim=1):
+    def sample(self, rng, dim=1):
         '''
             Sample random variable with given distribution name, parameters and dimension.
             Args:
-                rnd_stream (np.RandomState): a random stream. If None, det_val is returned.
+                rng (np.RandomState): a random stream. If None, det_val is returned.
                 dim (int or tuple): dimmention of the parameter (default is 1).
         '''
-        if rnd_stream is not None:
-            dist_func = getattr(rnd_stream, self.distribution_name)
+        if rng is not None:
+            dist_func = getattr(rng, self.distribution_name)
             args = self.params
             if self.is_inverse:
                 return np.squeeze(1 / dist_func(*args, dim))
