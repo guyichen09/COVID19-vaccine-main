@@ -12,6 +12,18 @@
 # Note that importing / exporting does not work for partial days
 #   (discrete steps within a day), so we assume days are fully completed.
 
+# Note that currently the simulation code uses numpy.random.RandomState
+#   for random number generation, and this is a legacy / deprecated implementation.
+#   There is currently no way to export or load the state of a random
+#   number generator to or from .json files. However, within a single
+#   Python session on the same computer, the state of a random number generator
+#   can be saved and started from the last saved point.
+# Future versions of the simulation code should use the updated
+#   numpy.random.default_rng and Generator objects in place of
+#   numpy.random.RandomState.
+
+# Linda Pei 2022
+
 ###############################################################################
 
 # Imports
@@ -73,11 +85,11 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
     Modifies a SimReplication object sim_rep in place to match the
         last state of a previously run simulation replication
     Updates sim_rep attributes according to the data in sim_rep_filename
-    Updates sim_rep.policy attributes according to the data in multi_tier_policy_filename
-        (this can be None, meaning there is no relevant policy data)
     Updates vaccine group attributes for each instance of VaccineGroup in
         sim_rep.vaccine_groups according to the data in vaccine_group_v0_filename,
         vaccine_group_v1_filename, vaccine_group_v2_filename, and vaccine_group_v3_filename
+    Updates sim_rep.policy attributes according to the data in multi_tier_policy_filename
+        (this can be None, meaning there is no relevant policy data)
     Updates sim_rep.epi_rand according to the data in random_params_filename
         (this can be None, meaning that new parameters will be randomly sampled
         and these parameters are different from the ones that generated the
@@ -149,20 +161,59 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
         sim_rep.epi_rand = epi_rand
 
 def load_vars_from_dict(simulation_object, loaded_dict, keys_to_convert_to_array=[]):
+    '''
+    Helper function to assign attribute values to simulation_object according to loaded_dict.
+        Modification occurs in-place.
+    :param simulation_object: instance of SimulationRep, MultiTierPolicy, VaccineGroup,
+        or EpiSetup
+    :param loaded_dict: [dict] with data to unpack and assign to simulation_object
+        attributes. Keys must be in SimReplication_IO_var_names, MultiTierPolicy_IO_var_names,
+        VaccineGroup_IO_arrays_var_names, or simulation_object.epi_rand.random_params_dict if
+        simulation_object is an instance of EpiSetup
+    :param keys_to_convert_to_array: [list, optional] list of strings (subset of loaded_dict.keys())
+        with values to convert from lists to arrays when assigned to simulation_object.
+    :return: None
+    '''
     for k in loaded_dict.keys():
         if k in keys_to_convert_to_array and isinstance(loaded_dict[k], list):
             setattr(simulation_object, k, np.array(loaded_dict[k]))
         else:
             setattr(simulation_object, k, loaded_dict[k])
 
-def export_rep_to_file(sim_rep, sim_rep_filename, multi_tier_policy_filename,
+def export_rep_to_file(sim_rep, sim_rep_filename,
                        vaccine_group_v0_filename, vaccine_group_v1_filename,
-                       vaccine_group_v2_filename, vaccine_group_v3_filename, random_params_filename):
+                       vaccine_group_v2_filename, vaccine_group_v3_filename,
+                       multi_tier_policy_filename=None, random_params_filename=None):
     '''
-    LP note: there is probably a more efficient way to
-        create this sub-dictionary... so this is still in progress...
+    Does not modify any simulation objects. Exports key sim_rep attributes,
+        key attributes of each vaccine group in sim_rep.vaccine_groups,
+        key sim_rep.policy attributes (optional), and key sim_rep.epi_rand attributes
+        (optional) to respective .json files, so that the current simulation
+        replication state can be saved and started from the last save point.
+
+    Function parameters are the same as function load_vars_from_file parameters.
+
+    :param sim_rep: [SimReplication obj]
+    :param sim_rep_filename: [str] .json file with entries corresponding to
+        SimReplication_IO_var_names
+    :param vaccine_group_v0_filename: [str] .json file with entries corresponding to
+        VaccineGroup_IO_var_names for vaccine group v_0
+    :param vaccine_group_v1_filename: [str] .json file with entries corresponding to
+        VaccineGroup_IO_var_names for vaccine group v_1
+    :param vaccine_group_v2_filename: [str] .json file with entries corresponding to
+        VaccineGroup_IO_var_names for vaccine group v_2
+    :param vaccine_group_v3_filename: [str] .json file with entries corresponding to
+        VaccineGroup_IO_var_names for vaccine group v_3
+    :param multi_tier_policy_filename: [str] .json file with entries corresponding to
+        MultiTierPolicy_IO_var_names
+    :param random_params_filename: [str] .json file with entries corresponding to
+        sim_rep.epi_rand.random_params_dict, i.e. parameters that are
+        randomly sampled at the beginning of the replication
+    :return: [None]
     '''
 
+    # Export sim_rep variables
+    # Numpy arrays must be converted to lists to be serializable
     d = {}
     for k in SimReplication_IO_var_names:
         if k in SimReplication_IO_list_of_arrays_var_names:
@@ -175,13 +226,7 @@ def export_rep_to_file(sim_rep, sim_rep_filename, multi_tier_policy_filename,
     json.dump(d, open(sim_rep_filename, "w"))
     sim_rep_filename.close()
 
-    if multi_tier_policy_filename is not None:
-        d = {}
-        for k in MultiTierPolicy_IO_var_names:
-            d[k] = getattr(sim_rep.policy, k)
-        json.dump(d, open(multi_tier_policy_filename, "w"))
-        multi_tier_policy_filename.close()
-
+    # Export vaccine group variables
     vaccine_group_filenames = [vaccine_group_v0_filename,
                                vaccine_group_v1_filename,
                                vaccine_group_v2_filename,
@@ -198,6 +243,15 @@ def export_rep_to_file(sim_rep, sim_rep_filename, multi_tier_policy_filename,
         json.dump(d, open(vaccine_group_filenames[i], "w"))
         vaccine_group_filenames[i].close()
 
+    # Export sim_rep.policy variables
+    if multi_tier_policy_filename is not None:
+        d = {}
+        for k in MultiTierPolicy_IO_var_names:
+            d[k] = getattr(sim_rep.policy, k)
+        json.dump(d, open(multi_tier_policy_filename, "w"))
+        multi_tier_policy_filename.close()
+
+    # Export sim_rep.epi_rand variables
     if random_params_filename is not None:
         d = sim_rep.epi_rand.random_params_dict
         for k in d.keys():

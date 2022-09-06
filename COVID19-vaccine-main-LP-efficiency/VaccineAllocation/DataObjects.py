@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 from pathlib import Path
-
 from itertools import product
 
 base_path = Path(__file__).parent
@@ -472,11 +471,14 @@ class Vaccine:
         Shift vaccine schedule for waiting vaccine to be effective, second dose and vaccine waning effect and also for booster dose.
         '''
         N = instance.N
-        self.actual_vaccine_time = [time for time in vaccine_allocation_data['vaccine_time']]
-        self.first_dose_time = [time + dt.timedelta(days = self.effect_time) for time in vaccine_allocation_data['vaccine_time']]
-        self.second_dose_time = [time + dt.timedelta(days = self.second_dose_time + self.effect_time) for time in self.first_dose_time if time + dt.timedelta(days = self.second_dose_time + self.effect_time) <= instance.end_date]
 
-        self.waning_time = [time + dt.timedelta(days = self.waning_time)  for time in vaccine_allocation_data['vaccine_time'] if time + dt.timedelta(days = self.waning_time) <= instance.end_date]
+        self.actual_vaccine_time = [time for time in vaccine_allocation_data['vaccine_time']]
+        self.first_dose_time = [time + dt.timedelta(days=self.effect_time) for time in
+                                vaccine_allocation_data['vaccine_time']]
+        self.second_dose_time = [time + dt.timedelta(days=self.second_dose_time + self.effect_time) for time in
+                                 self.first_dose_time]
+        self.waning_time = [time + dt.timedelta(days=self.waning_time) for time in
+                            vaccine_allocation_data['vaccine_time']]
         self.vaccine_proportion = [amount for amount in vaccine_allocation_data['vaccine_amount']]
 
         self.vaccine_start_time = np.where(np.array(instance.cal.calendar) == self.actual_vaccine_time[0])[0]
@@ -486,19 +488,11 @@ class Vaccine:
         v_booster_allocation = []
         v_wane_allocation = []
 
+        age_risk_columns = [column for column in vaccine_allocation_data.columns if "A" and "R" in column]
+
         # Fixed vaccine allocation:
         for i in range(len(vaccine_allocation_data['A1-R1'])):
-            vac_assignment = np.zeros((5, 2))
-            vac_assignment[0, 0] = vaccine_allocation_data['A1-R1'][i]
-            vac_assignment[0, 1] = vaccine_allocation_data['A1-R2'][i]
-            vac_assignment[1, 0] = vaccine_allocation_data['A2-R1'][i]
-            vac_assignment[1, 1] = vaccine_allocation_data['A2-R2'][i]
-            vac_assignment[2, 0] = vaccine_allocation_data['A3-R1'][i]
-            vac_assignment[2, 1] = vaccine_allocation_data['A3-R2'][i]
-            vac_assignment[3, 0] = vaccine_allocation_data['A4-R1'][i]
-            vac_assignment[3, 1] = vaccine_allocation_data['A4-R2'][i]
-            vac_assignment[4, 0] = vaccine_allocation_data['A5-R1'][i]
-            vac_assignment[4, 1] = vaccine_allocation_data['A5-R2'][i]
+            vac_assignment = np.array(vaccine_allocation_data[age_risk_columns].iloc[i]).reshape((5, 2))
 
             if np.sum(vac_assignment) > 0:
                 pro_round = vac_assignment/np.sum(vac_assignment)
@@ -507,38 +501,54 @@ class Vaccine:
             within_proportion = vac_assignment/N
 
             # First dose vaccine allocation:
-            supply_first_dose =  {'time': self.first_dose_time[i], 'amount': self.vaccine_proportion[i], 'type': "first_dose"}
-            allocation_item = {'assignment': vac_assignment, 'proportion': pro_round, 'within_proportion': within_proportion,  'supply': supply_first_dose, 'type': 'first_dose', 'from': 'v_0', 'to': 'v_1'}
+            supply_first_dose = {'time': self.first_dose_time[i],
+                                 'amount': self.vaccine_proportion[i],
+                                 'type': "first_dose"}
+            allocation_item = {'assignment': vac_assignment,
+                               'proportion': pro_round,
+                               'within_proportion': within_proportion,
+                               'supply': supply_first_dose,
+                               'type': 'first_dose',
+                               'from': 'v_0',
+                               'to': 'v_1'}
             v_first_allocation.append(allocation_item)
 
             # Second dose vaccine allocation:
             if i < len(self.second_dose_time):
-                supply_second_dose =  {'time': self.second_dose_time[i], 'amount': self.vaccine_proportion[i], 'type': "second_dose"}
-                allocation_item = {'assignment': vac_assignment, 'proportion': pro_round,'within_proportion': within_proportion,  'supply': supply_second_dose, 'type': 'second_dose', 'from': 'v_1', 'to': 'v_2'}
+                supply_second_dose = {'time': self.second_dose_time[i],
+                                      'amount': self.vaccine_proportion[i],
+                                      'type': "second_dose"}
+                allocation_item = {'assignment': vac_assignment,
+                                   'proportion': pro_round,
+                                   'within_proportion': within_proportion,
+                                   'supply': supply_second_dose,
+                                   'type': 'second_dose',
+                                   'from': 'v_1',
+                                   'to': 'v_2'}
                 v_second_allocation.append(allocation_item)
 
             # Waning vaccine efficacy:
             if i < len(self.waning_time):
-                supply_waning =  {'time': self.waning_time[i], 'amount': self.vaccine_proportion[i], 'type': "waning"}
-                allocation_item = {'assignment': vac_assignment, 'proportion': pro_round, 'within_proportion': within_proportion, 'supply': supply_waning, 'type': 'waning', 'from': 'v_2', 'to': 'v_3'}
+                supply_waning = {'time': self.waning_time[i],
+                                 'amount': self.vaccine_proportion[i],
+                                 'type': "waning"}
+                allocation_item = {'assignment': vac_assignment,
+                                   'proportion': pro_round,
+                                   'within_proportion': within_proportion,
+                                   'supply': supply_waning,
+                                   'type': 'waning',
+                                   'from': 'v_2',
+                                   'to': 'v_3'}
                 v_wane_allocation.append(allocation_item)
+
+        age_risk_columns = [column for column in booster_allocation_data.columns if "A" and "R" in column]
 
         # Fixed booster vaccine allocation:
         if booster_allocation_data is not None:
-            self.booster_time = [time  for time in booster_allocation_data['vaccine_time']]
-            self.booster_proportion = [amount for amount in booster_allocation_data['vaccine_amount']]
+            self.booster_time = [time for time in booster_allocation_data['vaccine_time']]
+            self.booster_proportion = np.array(booster_allocation_data['vaccine_amount'])
             for i in range(len(booster_allocation_data['A1-R1'])):
-                vac_assignment = np.zeros((5, 2))
-                vac_assignment[0, 0] = booster_allocation_data['A1-R1'][i]
-                vac_assignment[0, 1] = booster_allocation_data['A1-R2'][i]
-                vac_assignment[1, 0] = booster_allocation_data['A2-R1'][i]
-                vac_assignment[1, 1] = booster_allocation_data['A2-R2'][i]
-                vac_assignment[2, 0] = booster_allocation_data['A3-R1'][i]
-                vac_assignment[2, 1] = booster_allocation_data['A3-R2'][i]
-                vac_assignment[3, 0] = booster_allocation_data['A4-R1'][i]
-                vac_assignment[3, 1] = booster_allocation_data['A4-R2'][i]
-                vac_assignment[4, 0] = booster_allocation_data['A5-R1'][i]
-                vac_assignment[4, 1] = booster_allocation_data['A5-R2'][i]
+                vac_assignment = np.array(booster_allocation_data[age_risk_columns].iloc[i]).reshape((5, 2))
 
                 if np.sum(vac_assignment) > 0:
                     pro_round = vac_assignment/np.sum(vac_assignment)
@@ -547,11 +557,22 @@ class Vaccine:
                 within_proportion = vac_assignment/N
 
                 # Booster dose vaccine allocation:
-                supply_booster_dose =  {'time': self.booster_time[i], 'amount': self.booster_proportion[i], 'type': "booster_dose"}
-                allocation_item = {'assignment': vac_assignment, 'proportion': pro_round, 'within_proportion': within_proportion,  'supply': supply_booster_dose, 'type': 'booster_dose', 'from': 'v_3', 'to': 'v_2'}
+                supply_booster_dose = {'time': self.booster_time[i],
+                                       'amount': self.booster_proportion[i],
+                                       'type': "booster_dose"}
+                allocation_item = {'assignment': vac_assignment,
+                                   'proportion': pro_round,
+                                   'within_proportion': within_proportion,
+                                   'supply': supply_booster_dose,
+                                   'type': 'booster_dose',
+                                   'from': 'v_3',
+                                   'to': 'v_2'}
                 v_booster_allocation.append(allocation_item)
 
-        return {'v_first': v_first_allocation, 'v_second': v_second_allocation, 'v_booster': v_booster_allocation, 'v_wane': v_wane_allocation}
+        return {'v_first': v_first_allocation,
+                'v_second': v_second_allocation,
+                'v_booster': v_booster_allocation,
+                'v_wane': v_wane_allocation}
 
 class EpiSetup:
     '''
@@ -560,11 +581,6 @@ class EpiSetup:
     '''
 
     def __init__(self, params, end_date):
-        '''
-            Initialize an instance of epidemiological parameters. If the
-            parameter is random, is not initialize and is queried as a
-            property
-        '''
 
         self.load_file(params)
 
@@ -668,6 +684,7 @@ class EpiSetup:
 
         self.beta = self.beta0
 
+        # Formerly updated under update_hosp_duration() function in original code
         self.gamma_ICU = self.gamma_ICU0 * (1 + self.alpha1)
         self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3)
         self.gamma_IH = self.gamma_IH0 * (1 - self.alpha2)

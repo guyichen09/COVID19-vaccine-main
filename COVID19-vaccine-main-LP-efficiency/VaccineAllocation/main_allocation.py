@@ -1,5 +1,12 @@
 if __name__ == '__main__':
     import multiprocessing
+    import mpi4py
+
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+    num_workers = size - 1
+    master_rank = size - 1
 
     import time
     import numpy as np
@@ -88,9 +95,9 @@ if __name__ == '__main__':
                 np.savetxt(str(rank) + "_num_elim_per_stage.csv", np.array(num_elim_per_stage), delimiter=",")
                 np.savetxt(str(rank) + "_all_rsq.csv", np.array(all_rsq), delimiter=",")
 
-    for i in range(multiprocessing.cpu_count()):
-        p = multiprocessing.Process(target=get_sample_paths, args=(i,))
-        p.start()
+    # for i in range(multiprocessing.cpu_count()):
+    #     p = multiprocessing.Process(target=get_sample_paths, args=(i,))
+    #     p.start()
 
     #############################################################
 
@@ -203,3 +210,10 @@ if __name__ == '__main__':
     # #     # print(getattr(new, k))
     # #     print(getattr(newnew, k))
     # #     print("~~~~~~~~~~~~~~")
+
+    thresholds = (-1, 100, 200, 500, 1000)
+    mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
+    rep = SimReplication(austin, vaccines, mtp, 500)
+    rep.simulate_time_period(0, 945)
+    print(rep.compute_rsq())
+    print(rep.policy.compute_cost())

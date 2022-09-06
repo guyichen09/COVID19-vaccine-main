@@ -1,5 +1,8 @@
 ############
 
+# :}
+python3 -O -m pdb main_allocation.py
+
 # 08232022 
 # For checking answers: comparing OG to my version
 python3 -O -m pdb main_allocation.py austin -f setup_data_Final.json -t tiers_LP_debug.json -n_proc 1 -train_reps 2 -test_reps 1 -f_config austin_test_IHT.json -tr transmission.csv -hos austin_real_hosp_updated.csv -v_allocation vaccine_allocation_fixed.csv -v_boost booster_allocation_fixed.csv -n_policy 7

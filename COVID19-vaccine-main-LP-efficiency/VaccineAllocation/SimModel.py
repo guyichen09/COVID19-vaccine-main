@@ -1,12 +1,3 @@
-'''
-This module runs a simulation of the SEIYARDH model for a single city,
-considering different age groups and seven compartments. This model is
-based of Zhanwei's Du model, Meyer's Group.
-
-This module also contains functions to run the simulations in parallel
-and a class to properly define a calendar (SimCalendar).
-'''
-
 import numpy as np
 from SimObjects import VaccineGroup
 import copy
@@ -207,7 +198,14 @@ class SimReplication:
         else:
             epi.update_icu_all(t,self.instance.otherInfo)
 
-        # sigma_E, pi, gamma_IY, gamma_IA, Eta, rIH, nu, mu, gamma_IH, nu_ICU, mu_ICU, gamma_ICU, omega_PY, omega_PA, omega_IA, omega_IY, beta
+        # sigma_E, pi, gamma_IY, alpha4
+        # gamma_IA, rho_A, rho_Y,
+        # Eta, rIH, nu, mu,
+        # gamma_IH, nu_ICU, mu_ICU,
+        # gamma_ICU,
+        # immune_evasion
+        # omega_PY, omega_PA, omega_IA, omega_IY,
+        # beta, tau
 
         rate_E = self.discrete_approx(epi.sigma_E, self.step_size)
         rate_IYR = self.discrete_approx(np.array([[(1 - epi.pi[a, l]) * epi.gamma_IY * (1 - epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
