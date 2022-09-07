@@ -116,7 +116,6 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
 
     # Update sim_rep variables
     d = json.load(open(sim_rep_filename))
-    sim_rep_filename.close()
     load_vars_from_dict(sim_rep, d, sim_rep.state_vars + sim_rep.tracking_vars)
 
     # Update vaccine group variables
@@ -126,7 +125,6 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
     for i in range(len(vaccine_group_filenames)):
         vaccine_group = sim_rep.vaccine_groups[i]
         d = json.load(open(vaccine_group_filenames[i]))
-        vaccine_group_filenames[i].close()
         load_vars_from_dict(vaccine_group, d, sim_rep.state_vars + sim_rep.tracking_vars)
 
         # Modify the first step of the next day so that the
@@ -137,7 +135,6 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
     # (Optional) update policy variables
     if multi_tier_policy_filename is not None:
         d = json.load(open(multi_tier_policy_filename))
-        multi_tier_policy_filename.close()
         load_vars_from_dict(sim_rep.policy, d)
 
     # (Optional) update epidemiological parameters
@@ -145,7 +142,6 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
 
         # Load randomly sampled epi parameters
         d = json.load(open(random_params_filename))
-        random_params_filename.close()
         load_vars_from_dict(epi_rand, d)
 
         # Update sim_rep.epi_rand accordingly
@@ -224,7 +220,6 @@ def export_rep_to_file(sim_rep, sim_rep_filename,
         else:
             d[k] = getattr(sim_rep, k)
     json.dump(d, open(sim_rep_filename, "w"))
-    sim_rep_filename.close()
 
     # Export vaccine group variables
     vaccine_group_filenames = [vaccine_group_v0_filename,
@@ -241,7 +236,6 @@ def export_rep_to_file(sim_rep, sim_rep_filename,
             else:
                 d[k] = getattr(vaccine_group, k)
         json.dump(d, open(vaccine_group_filenames[i], "w"))
-        vaccine_group_filenames[i].close()
 
     # Export sim_rep.policy variables
     if multi_tier_policy_filename is not None:
@@ -249,7 +243,6 @@ def export_rep_to_file(sim_rep, sim_rep_filename,
         for k in MultiTierPolicy_IO_var_names:
             d[k] = getattr(sim_rep.policy, k)
         json.dump(d, open(multi_tier_policy_filename, "w"))
-        multi_tier_policy_filename.close()
 
     # Export sim_rep.epi_rand variables
     if random_params_filename is not None:
@@ -258,4 +251,3 @@ def export_rep_to_file(sim_rep, sim_rep_filename,
             if isinstance(d[k], np.ndarray):
                 d[k] = d[k].tolist()
         json.dump(d, open(random_params_filename, "w"))
-        random_params_filename.close()

@@ -26,9 +26,6 @@ class SimCalendar:
     '''
 
     def __init__(self, start_date, sim_length):
-        '''
-            Arg
-        '''
         self.start = start_date
         self.calendar = [self.start + dt.timedelta(days=t) for t in range(sim_length)]
         self.calendar_ix = {d: d_ix for (d_ix, d) in enumerate(self.calendar)}
@@ -39,18 +36,6 @@ class SimCalendar:
         self.fixed_transmission_reduction = None
         self.fixed_cocooning = None
         self.month_starts = self.get_month_starts()
-
-    def is_weekday(self, t):
-        '''
-            True if t is a weekday, False otherwise
-        '''
-        return self._is_weekday[t]
-
-    def get_day_type(self, t):
-        '''
-            Returns the date type with the convention of the class
-        '''
-        return self._day_type[t]
 
     def load_predefined_lockdown(self, lockdown_blocks):
         '''
@@ -85,15 +70,13 @@ class SimCalendar:
                     closedDay = True
             self.schools_closed.append(closedDay)
 
-    def load_fixed_transmission_reduction(self, ts_transmission_reduction, present_date=dt.datetime.today()):
+    def load_fixed_transmission_reduction(self, ts_transmission_reduction):
         '''
             Load fixed decisions on transmission reduction and saves it on attribute fixed_transmission_reduction.
             If a value is not given, the transmission reduction is None.
             Args:
                 ts_transmission_reduction (list of tuple): a list with the time series of
                     transmission reduction (datetime, float).
-                present_date (datetime): reference date so that all dates before must have a
-                    transmission reduction defined
         '''
         self.fixed_transmission_reduction = [None for d in self.calendar]
         for (d, tr) in ts_transmission_reduction:
@@ -101,15 +84,13 @@ class SimCalendar:
                 d_ix = self.calendar_ix[d]
                 self.fixed_transmission_reduction[d_ix] = tr
 
-    def load_fixed_cocooning(self, ts_cocooning, present_date=dt.datetime.today()):
+    def load_fixed_cocooning(self, ts_cocooning):
         '''
             Load fixed decisions on transmission reduction and saves it on attribute fixed_transmission_reduction.
             If a value is not given, the transmission reduction is None.
             Args:
                 ts_cocooning (list of tuple): a list with the time series of
                     transmission reduction (datetime, float).
-                present_date (datetime): reference date so that all dates before must have a
-                    transmission reduction defined
         '''
         self.fixed_cocooning = [None for d in self.calendar]
         for (d, tr) in ts_cocooning:
@@ -287,8 +268,8 @@ class City:
             except:
                 cocooning = [(d, 0.0) for d in df_transmission['date']]
             lockdown_end = df_transmission['date'].iloc[-1]
-            cal.load_fixed_transmission_reduction(transmission_reduction, present_date=lockdown_end)
-            cal.load_fixed_cocooning(cocooning, present_date=lockdown_end)
+            cal.load_fixed_transmission_reduction(transmission_reduction)
+            cal.load_fixed_cocooning(cocooning)
             for dfk in df_transmission.keys():
                 if dfk != 'date' and dfk != 'transmission_reduction' and dfk != 'cocooning':
                     self.otherInfo[dfk] = {}
@@ -330,7 +311,6 @@ class Vaccine:
             vaccine_allocation_data: (dict) contains vaccine schedule, supply and allocation data.
             booster_allocation_data: (dict) contains booster schedule, supply and allocation data.
             instance: data instance
-
     '''
     def __init__(self, instance, city,
                  vaccine_filename,
@@ -408,7 +388,6 @@ class Vaccine:
             return self.event_lookup_dict[vaccine_type][date]
 
     def get_num_eligible(self, total_population, total_risk_gr, vaccine_group_name, v_in, v_out, date):
-
         '''
 
         :param total_population: integer, usually N parameter such as instance.N
@@ -644,24 +623,15 @@ class EpiSetup:
 
     def setup_base_params(self):
 
-        self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
-                                                              (1 - self.YHR_overall[a]) / self.gamma_IY) +
-                                  (1 - self.tau) * self.omega_IA / self.gamma_IA) /
-                                 (self.tau * self.omega_IY +
-                                  (1 - self.tau) * self.omega_IA) * self.rho_Y * self.pp / (1 - self.pp)
-                                 for a in range(len(self.YHR_overall))])
-        self.omega_PA = self.omega_IA * self.omega_P
-        self.omega_PY = self.omega_IY * self.omega_P
-        # pi is computed using risk based hosp rate
-        self.pi = np.array([
-            self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
-            for a in range(len(self.YHR))
-        ])
+        self.beta = self.beta0
         self.YFR = self.IFR / self.tau
-        self.HFR = self.YFR / self.YHR
         self.rIH0 = self.rIH
         self.YHR0 = self.YHR
         self.YHR_overall0 = self.YHR_overall
+
+        self.gamma_ICU0 = self.gamma_ICU.copy().reshape(len(self.gamma_ICU), 1)
+        self.mu_ICU0 = self.mu_ICU.copy().reshape(len(self.gamma_ICU), 1)
+
         # if gamma_IH and mu are lists, reshape them for right dimension
         if isinstance(self.gamma_IH, np.ndarray):
             self.gamma_IH = self.gamma_IH.reshape(self.gamma_IH.size, 1)
@@ -669,20 +639,9 @@ class EpiSetup:
         if isinstance(self.mu, np.ndarray):
             self.mu = self.mu.reshape(self.mu.size, 1)
             self.mu0 = self.mu.copy()
-        try:
-            self.HICUR0 = self.HICUR
-            self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-            if isinstance(self.gamma_ICU, np.ndarray):
-                self.gamma_ICU = self.gamma_ICU.reshape(self.gamma_ICU.size, 1)
-                self.gamma_ICU0 = self.gamma_ICU.copy()
-            if isinstance(self.mu_ICU, np.ndarray):
-                self.mu_ICU = self.mu_ICU.reshape(self.mu_ICU.size, 1)
-                self.mu_ICU0 = self.mu_ICU.copy()
-            self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU - self.mu_ICU) * self.ICUFR)
-        except:
-            self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH - self.mu) * self.HFR)
 
-        self.beta = self.beta0
+        self.update_YHR_params()
+        self.update_nu_params()
 
         # Formerly updated under update_hosp_duration() function in original code
         self.gamma_ICU = self.gamma_ICU0 * (1 + self.alpha1)
@@ -694,51 +653,35 @@ class EpiSetup:
             Update parameters according to delta variant prevelance.
         '''
 
-        self.beta = self.beta0 * (1 - prev) + self.beta0 * (1.65) * prev  # increased transmission
-
         E_new = 1 / self.sigma_E - 1.5
         self.sigma_E = self.sigma_E * (1 - prev) + (1 / E_new) * prev  # decreased incubation period.
-        # print(self.sigma_E)
 
-        self.YHR = self.YHR * (1 - prev) + self.YHR * (1.8) * prev  # increased hospitalization rate.
+        # Arslan et al. 2021 -- assume Delta is 1.65 times more transmissible than pre-Delta
+        self.beta = self.beta0 * (1 - prev) + self.beta0 * (1.65) * prev
+
+        # Arslan et al. 2021 -- assume Delta causes 80% more hospitalizations than pre-Delta
+        self.YHR = self.YHR * (1 - prev) + self.YHR * (1.8) * prev
         self.YHR_overall = self.YHR_overall * (1 - prev) + self.YHR_overall * (1.8) * prev
 
-        # Update parameters where YHR is used:
-        self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
-                                                              (1 - self.YHR_overall[a]) / self.gamma_IY) +
-                                  (1 - self.tau) * self.omega_IA / self.gamma_IA) /
-                                 (self.tau * self.omega_IY +
-                                  (1 - self.tau) * self.omega_IA) * self.rho_Y * self.pp / (1 - self.pp)
-                                 for a in range(len(self.YHR_overall))])
-        self.omega_PA = self.omega_IA * self.omega_P
-        self.omega_PY = self.omega_IY * self.omega_P
-
-        self.pi = np.array([
-            self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
-            for a in range(len(self.YHR))
-        ])
-        self.HFR = self.YFR / self.YHR
-
-        try:
-            self.HICUR0 = self.HICUR
-            self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-            if isinstance(self.gamma_ICU, np.ndarray):
-                self.gamma_ICU = self.gamma_ICU.reshape(self.gamma_ICU.size, 1)
-                self.gamma_ICU0 = self.gamma_ICU.copy()
-            if isinstance(self.mu_ICU, np.ndarray):
-                self.mu_ICU = self.mu_ICU.reshape(self.mu_ICU.size, 1)
-                self.mu_ICU0 = self.mu_ICU.copy()
-            self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU - self.mu_ICU) * self.ICUFR)
-        except:
-            self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH - self.mu) * self.HFR)
+        self.update_YHR_params()
+        self.update_nu_params()
 
         # Update hospital dynamic parameters:
-        self.gamma_ICU = (self.gamma_ICU0 * (1 + self.alpha1)) * (1 - prev) + (
-                    self.gamma_ICU0 * 0.65 * (1 + self.alpha1_delta)) * prev
-        self.mu_ICU = (self.mu_ICU0 * (1 + self.alpha3)) * (1 - prev) + (
-                    self.mu_ICU0 * 0.65 * (1 + self.alpha3_delta)) * prev
-        self.gamma_IH = (self.gamma_IH0 * (1 - self.alpha2)) * (1 - prev) + (
-                    self.gamma_IH0 * (1 - self.alpha2_delta)) * prev
+        gamma_ICU0 = self.gamma_ICU0
+        mu_ICU0 = self.mu_ICU0
+        gamma_IH0 = self.gamma_IH0
+
+        # Rate of recovery from ICU -- increases with Delta?
+        self.gamma_ICU = gamma_ICU0 * (1 + self.alpha1) * (1 - prev) + \
+                         gamma_ICU0 * 0.65 * (1 + self.alpha1_delta) * prev
+
+        # Rate of transition from ICU to death -- increases with Delta
+        self.mu_ICU = mu_ICU0 * (1 + self.alpha3) * (1 - prev) + \
+                    self.mu_ICU0 * 0.65 * (1 + self.alpha3_delta) * prev
+
+        # Rate of recovery from IH -- decreases with Delta
+        self.gamma_IH = gamma_IH0 * (1 - self.alpha2) * (1 - prev) + \
+                    gamma_IH0 * (1 - self.alpha2_delta) * prev
 
         self.alpha4 = self.alpha4_delta * prev + self.alpha4 * (1 - prev)
 
@@ -753,42 +696,22 @@ class EpiSetup:
         self.YHR = self.YHR0 * (1 - prev) + self.YHR0 * 0.9 * prev
         self.YHR_overall = self.YHR_overall * (1 - prev) + self.YHR_overall * 0.9 * prev
 
-        # Update parameters where YHR is used:
-        self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
-                                                              (1 - self.YHR_overall[a]) / self.gamma_IY) +
-                                  (1 - self.tau) * self.omega_IA / self.gamma_IA) /
-                                 (self.tau * self.omega_IY +
-                                  (1 - self.tau) * self.omega_IA) * self.rho_Y * self.pp / (1 - self.pp)
-                                 for a in range(len(self.YHR_overall))])
-        self.omega_PA = self.omega_IA * self.omega_P
-        self.omega_PY = self.omega_IY * self.omega_P
-
-        self.pi = np.array([
-            self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
-            for a in range(len(self.YHR))
-        ])
-        self.HFR = self.YFR / self.YHR
-
-        try:
-            self.HICUR0 = self.HICUR
-            self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-            if isinstance(self.gamma_ICU, np.ndarray):
-                self.gamma_ICU = self.gamma_ICU.reshape(self.gamma_ICU.size, 1)
-                self.gamma_ICU0 = self.gamma_ICU.copy()
-            if isinstance(self.mu_ICU, np.ndarray):
-                self.mu_ICU = self.mu_ICU.reshape(self.mu_ICU.size, 1)
-                self.mu_ICU0 = self.mu_ICU.copy()
-            self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU - self.mu_ICU) * self.ICUFR)
-        except:
-            self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH - self.mu) * self.HFR)
+        self.update_YHR_params()
+        self.update_nu_params()
 
         # Update hospital dynamic parameters:
-        self.gamma_ICU = self.gamma_ICU0 * (1 + self.alpha1_omic) * 1.1 * prev + (
-                    self.gamma_ICU0 * 0.65 * (1 + self.alpha1_delta)) * (1 - prev)
-        self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3_omic) * prev + (self.mu_ICU0 * 0.65 * (1 + self.alpha3_delta)) * (
-                    1 - prev)
-        self.gamma_IH = self.gamma_IH0 * (1 - self.alpha2_omic) * prev + (self.gamma_IH0 * (1 - self.alpha2_delta)) * (
-                    1 - prev)
+        gamma_ICU0 = self.gamma_ICU0
+        mu_ICU0 = self.mu_ICU0
+        gamma_IH0 = self.gamma_IH0
+
+        self.gamma_ICU = gamma_ICU0 * (1 + self.alpha1_omic) * 1.1 * prev + \
+                         gamma_ICU0 * 0.65 * (1 + self.alpha1_delta) * (1 - prev)
+
+        self.mu_ICU = mu_ICU0 * (1 + self.alpha3_omic) * prev + \
+                      mu_ICU0 * 0.65 * (1 + self.alpha3_delta) * (1 - prev)
+
+        self.gamma_IH = gamma_IH0 * (1 - self.alpha2_omic) * prev + \
+                        gamma_IH0 * (1 - self.alpha2_delta) * (1 - prev)
 
         self.alpha4 = self.alpha4_omic * prev + self.alpha4_delta * (1 - prev)
 
@@ -822,6 +745,37 @@ class EpiSetup:
                 self.mu = self.mu0.copy()
         self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
 
+    def update_YHR_params(self):
+        self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
+                                                              (1 - self.YHR_overall[a]) / self.gamma_IY) +
+                                  (1 - self.tau) * self.omega_IA / self.gamma_IA) /
+                                 (self.tau * self.omega_IY +
+                                  (1 - self.tau) * self.omega_IA) * self.rho_Y * self.pp / (1 - self.pp)
+                                 for a in range(len(self.YHR_overall))])
+        self.omega_PA = self.omega_IA * self.omega_P
+        self.omega_PY = self.omega_IY * self.omega_P
+
+        # pi is computed using risk based hosp rate
+        self.pi = np.array([
+            self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
+            for a in range(len(self.YHR))
+        ])
+        self.HFR = self.YFR / self.YHR
+
+    def update_nu_params(self):
+        try:
+            self.HICUR0 = self.HICUR
+            self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
+            if isinstance(self.gamma_ICU, np.ndarray):
+                self.gamma_ICU = self.gamma_ICU.reshape(self.gamma_ICU.size, 1)
+                self.gamma_ICU0 = self.gamma_ICU.copy()
+            if isinstance(self.mu_ICU, np.ndarray):
+                self.mu_ICU = self.mu_ICU.reshape(self.mu_ICU.size, 1)
+                self.mu_ICU0 = self.mu_ICU.copy()
+            self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU - self.mu_ICU) * self.ICUFR)
+        except:
+            self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH - self.mu) * self.HFR)
+
     def effective_phi(self, school, cocooning, social_distance, demographics, day_type):
         '''
             school (int): yes (1) / no (0) schools are closed
@@ -849,39 +803,25 @@ class EpiSetup:
             phi_work_extended[a, :, b, :] = self.phi_work[a, b] * phi_ab_split
 
         # Apply school closure and social distance
+        # Assumes 95% reduction on last age group and high risk cocooning
         if day_type == 1:  # Weekday
             phi_age_risk = (1 - social_distance) * (phi_all_extended - school * phi_school_extended)
             if cocooning > 0:
-                # Assumes 95% reduction on last age group and high risk
-                # High risk cocooning
                 phi_age_risk_copy = phi_all_extended - school * phi_school_extended
-                phi_age_risk[:, 1, :, :] = (1 - cocooning) * phi_age_risk_copy[:, 1, :, :]
-                # last age group cocooning
-                phi_age_risk[-1, :, :, :] = (1 - cocooning) * phi_age_risk_copy[-1, :, :, :]
-            assert (phi_age_risk >= 0).all()
-            return phi_age_risk
         elif day_type == 2 or day_type == 3:  # is a weekend or holiday
             phi_age_risk = (1 - social_distance) * (phi_all_extended - phi_school_extended - phi_work_extended)
             if cocooning > 0:
-                # Assumes 95% reduction on last age group and high risk
-                # High risk cocooning
                 phi_age_risk_copy = (phi_all_extended - phi_school_extended - phi_work_extended)
-                phi_age_risk[:, 1, :, :] = (1 - cocooning) * phi_age_risk_copy[:, 1, :, :]
-                # last age group cocooning
-                phi_age_risk[-1, :, :, :] = (1 - cocooning) * phi_age_risk_copy[-1, :, :, :]
-            assert (phi_age_risk >= 0).all()
-            return phi_age_risk
         else:
             phi_age_risk = (1 - social_distance) * (phi_all_extended - phi_school_extended)
             if cocooning > 0:
-                # Assumes 95% reduction on last age group and high risk
-                # High risk cocooning
                 phi_age_risk_copy = (phi_all_extended - phi_school_extended)
-                phi_age_risk[:, 1, :, :] = (1 - cocooning) * phi_age_risk_copy[:, 1, :, :]
-                # last age group cocooning
-                phi_age_risk[-1, :, :, :] = (1 - cocooning) * phi_age_risk_copy[-1, :, :, :]
-            assert (phi_age_risk >= 0).all()
-            return phi_age_risk
+        if cocooning > 0:
+            # High risk cocooning and last age group cocooning
+            phi_age_risk[:, 1, :, :] = (1 - cocooning) * phi_age_risk_copy[:, 1, :, :]
+            phi_age_risk[-1, :, :, :] = (1 - cocooning) * phi_age_risk_copy[-1, :, :, :]
+        assert (phi_age_risk >= 0).all()
+        return phi_age_risk
 
 class ParamDistribution:
     '''

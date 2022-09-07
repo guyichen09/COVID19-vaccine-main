@@ -29,7 +29,7 @@ class MultiTierPolicy:
         self.lockdown_thresholds = lockdown_thresholds
         self.tier_history = None
 
-    def reset_tier_history(self):
+    def reset(self):
         self.tier_history = None
 
     def compute_cost(self):
@@ -76,7 +76,6 @@ class MultiTierPolicy:
             ToIY_avg = 0
 
         current_tier = self.tier_history[t - 1]
-        T = self._instance.T
 
         # find new tier
         counter = 0

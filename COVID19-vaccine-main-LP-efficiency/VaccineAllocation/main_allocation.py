@@ -1,219 +1,153 @@
-if __name__ == '__main__':
-    import multiprocessing
-    import mpi4py
+###############################################################################
 
-    comm = MPI.COMM_WORLD
-    size = comm.Get_size()
-    rank = comm.Get_rank()
-    num_workers = size - 1
-    master_rank = size - 1
+# Examples.py
+# This document contains examples of how to use the simulation code.
 
-    import time
-    import numpy as np
-    import copy
+# To launch the examples, either
+# (1) Run the following command in the OS command line or Terminal:
+#   python3 Examples.py
+# (2) Copy and paste the code of this document into an interactive
+#   Python console.
 
-    start = time.time()
+# Note that if modules cannot be found, this is a path problem.
+# In both fixes below, replace <NAME_OF_YOUR_DIRECTORY> with a string
+#   containing the directory in which the modules reside.
+# (1) The following path can be updated via the OS command line or Terminal
+#   (e.g. on a cluster):
+#   export PYTHONPATH=<NAME_OF_YOUR_DIRECTORY>:$PYTHONPATH
+# (2) The following code can be added to the main .py script file (e.g. can be added to
+#   the top of this document):
+#   import sys
+#   sys.path.append(<NAME_OF_YOUR_DIRECTORY>)
 
-    from SimObjects import MultiTierPolicy
-    from DataObjects import City, TierInfo, Vaccine
-    from SimModel import SimReplication
-    import InputOutputTools
+# Linda Pei 2022
 
-    austin = City("austin",
-                  "austin_test_IHT.json",
-                  "calendar.csv",
-                  "setup_data_Final.json",
-                  "transmission.csv",
-                  "austin_real_hosp_updated.csv",
-                  "delta_prevalence.csv",
-                  "omicron_prevalence.csv",
-                  "variant_prevalence.csv")
+###############################################################################
 
-    tiers = TierInfo("austin", "tiers5_opt_Final.json")
+# Import other code modules
+# SimObjects contains classes of objects that change within a simulation
+#   replication.
+# DataObjects contains classes of objects that do not change
+#   within simulation replications and also do not change *across*
+#   simulation replications -- they contain data that are "fixed"
+#   for an overall problem.
+# SimModel contains the class SimReplication, which runs
+#   a simulation replication and stores the simulation data
+#   in its object attributes.
+# InputOutputTools contains utility functions that act on
+#   instances of SimReplication to load and export
+#   simulation states and data.
+# OptTools contains utility functions for optimization purposes.
+import copy
 
-    vaccines = Vaccine(austin,
-                       "austin",
-                       "vaccines.json",
-                       "booster_allocation_fixed.csv",
-                       "vaccine_allocation_fixed.csv")
+from SimObjects import MultiTierPolicy
+from DataObjects import City, TierInfo, Vaccine
+from SimModel import SimReplication
+import InputOutputTools
+import OptTools
 
-    #############################################################
+# Import other Python packages
+import numpy as np
 
-    def get_sample_paths(rank):
+###############################################################################
 
-        print(rank)
+# Mandatory definitions from user-input files
+# In general, these following lines must be in every script that uses
+#   the simulation code. The specific names of the files used may change.
+# Each simulation replication requires these 3 instances
+#   (built from reading .json and .csv files)
+# (1) City instance that holds calendar, city-specific epidemiological parameters,
+#   historical hospital data, and fitted transmission parameters
+# (2) TierInfo instance that contains information about the tiers in a
+#   social distancing threshold policy
+# (3) Vaccine instance that holds vaccine groups and historical
+#   vaccination data
 
-        rep = SimReplication(austin, vaccines, None, rank)
+austin = City("austin",
+              "austin_test_IHT.json",
+              "calendar.csv",
+              "setup_data_Final.json",
+              "transmission.csv",
+              "austin_real_hosp_updated.csv",
+              "delta_prevalence.csv",
+              "omicron_prevalence.csv",
+              "variant_prevalence.csv")
 
-        training_set_reps = 0
-        total_reps = 0
-        num_elim_per_stage = [0, 0, 0, 0, 0]
-        timepoints = (25, 100, 200, 400, 783)
-        all_rsq = []
+tiers = TierInfo("austin", "tiers5_opt_Final.json")
 
-        start = time.time()
+vaccines = Vaccine(austin,
+                   "austin",
+                   "vaccines.json",
+                   "booster_allocation_fixed.csv",
+                   "vaccine_allocation_fixed.csv")
 
-        while training_set_reps < 300:
-            total_reps += 1
-            if total_reps % 10 == 0:
-                print(time.time() - start)
-                print(num_elim_per_stage)
-                start = time.time()
-            valid = True
-            for i in range(5):
-                rep.simulate_time_period(rep.next_t, timepoints[i])
-                rsq = rep.compute_rsq()
-                if rsq < 0.75:
-                    num_elim_per_stage[i] += 1
-                    valid = False
-                    all_rsq.append(rsq)
-                    # print(rsq)
-                    break
-            if valid == True:
-                training_set_reps += 1
-                all_rsq.append(rsq)
-                # print(rsq)
-                identifier = str(rank) + "_" + str(training_set_reps)
-                InputOutputTools.export_rep_to_file(rep,
-                                                    identifier + "_sim.json",
-                                                    None,
-                                                    identifier + "_v0.json",
-                                                    identifier + "_v1.json",
-                                                    identifier + "_v2.json",
-                                                    identifier + "_v3.json",
-                                                    identifier + "_epi_params.json")
-            next_rng = rep.rng
-            rep = SimReplication(austin, vaccines, None, 1)
+###############################################################################
 
-            rep.rng = next_rng
-            epi_rand = copy.deepcopy(rep.instance.base_epi)
-            epi_rand.sample_random_params(rep.rng)
-            epi_rand.setup_base_params()
-            rep.epi_rand = epi_rand
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Example A: Simulating a threshold policy
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            if total_reps % 1000 == 0:
-                np.savetxt(str(rank) + "_num_elim_per_stage.csv", np.array(num_elim_per_stage), delimiter=",")
-                np.savetxt(str(rank) + "_all_rsq.csv", np.array(all_rsq), delimiter=",")
+# In general, simulating a policy requires the steps
+# (1) Create a MultiTierPolicy instance with
+#   desired thresholds.
+# (2) Create a SimReplication instance with
+#   aforementioned policy and a random number seed --
+#   this seed dictates the randomly sampled
+#   epidemiological parameters for that replication
+#   as well as the binomial random variable
+#   transitions between compartments in the SEIR-type
+#   model.
+# (3) Advance simulation time.
 
-    # for i in range(multiprocessing.cpu_count()):
-    #     p = multiprocessing.Process(target=get_sample_paths, args=(i,))
-    #     p.start()
+# Specify the 5 thresholds for a 5-tier policy
+thresholds = (-1, 100, 200, 500, 1000)
 
-    #############################################################
+# Create an instance of MultiTierPolicy using
+#   austin, tiers (defined above)
+#   thresholds (defined above)
+#   "green" as the community_transmission toggle
+# Prof Morton mentioned that setting community_transmission
+#   to "green" was a government official request to stop
+#   certain "drop-offs" in active tiers
+mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
 
-    # det = SimReplication(austin, vaccines, None, -1)
-    # det.simulate_time_period(0, det.t_historical_data_end)
-    # InputOutputTools.export_rep_to_file(det, "det_sim_rep.json", None,
-    #                                     "det_v0.json", "det_v1.json", "det_v2.json", "det_v3.json",
-    #                                     "det_epi_params.json")
-    #
-    # base = SimReplication(austin, vaccines, None, -1)
-    # InputOutputTools.load_vars_from_file(base, "det_sim_rep.json", None,
-    #                                     "det_v0.json", "det_v1.json", "det_v2.json", "det_v3.json",
-    #                                     "det_epi_params.json")
+# Create an instance of SimReplication with the
+#   random number seed 500.
+rep = SimReplication(austin, vaccines, mtp, 500)
+
+# Note that specifying a seed of -1 creates
+#   a simulation replication with
+#   average values for the "random"
+#   epidemiological parameter values and deterministic
+#   binomial transitions (also taking average values).
+
+# Advance simulation time until a desired end day.
+# Currently, any nonnegative number between 0 and 963
+#   (the length of the user-specified "calendar.csv")
+#   works.
+# Attributes in the SimReplication instance are
+#   updated in-place to reflect the most current
+#   simulation state.
+rep.simulate_time_period(800)
+
+# After simulating, we can query the R-squared.
+# If the simulation has been simulated for fewer
+#   days than the timeframe of the historical time
+#   period, the R-squared is computed for this
+#   subset of days.
+print(rep.compute_rsq())
+
+# After simulating, we can query the cost
+#   of the specified policy.
+print(rep.policy.compute_cost())
+
+###############################################################################
+
+# Other examples to add -- stay tuned
+# Reset policy
+# Reset simulation rep (while saving the sampled parameters)
+# Stopping and starting simulation rep within a Python session
+# Externally exporting and importing a simulation rep across computers and sessions
 
 
 
-    # # p1 < 14
-    # # p1 14
-    #
-    # grid = [1000 + (i+1)*1000 for i in range(20)]
-    # grid.reverse()
-    # eps = 1e-6
-    #
-    # list_of_candidate_policies = []
-    #
-    # grid = [np.inf]
-    #
-    # grid2 = [i+1 for i in range(10)]
-    # grid2.reverse()
-    #
-    # for p1 in grid2:
-    #     print(p1)
-    #     for g in grid:
-    #         threshold = (-1, p1, g-eps, g-eps, g)
-    #         rep = copy.deepcopy(base)
-    #         rep.policy = MultiTierPolicy(austin, tiers, threshold, None)
-    #         rep.simulate_time_period(rep.next_t, 945)
-    #         if rep.compute_ICU_violation():
-    #             print(threshold)
-    #             break
-    #
-    # breakpoint()
-
-    #############################################################
-
-    # thresholds = (-1, 10, 20, 500, 1000)
-    # mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
-    # old = SimReplication(austin, vaccines, mtp, 2000)
-    # old.simulate_time_period(0, 150)
-    # start = time.time()
-    # InputOutputTools.export_rep_to_file(old,
-    #                                     "sim_rep.json",
-    #                                     "policy.json",
-    #                                     "v0.json",
-    #                                     "v1.json",
-    #                                     "v2.json",
-    #                                     "v3.json",
-    #                                     "random_epi_params_historical_period.json")
-    # print(time.time() - start)
-    # print(old.compute_rsq())
-    # old.rng = np.random.RandomState(100)
-    # old.simulate_time_period(150, 945)
-    # print(old.compute_rsq())
-    # print(old.policy.compute_cost())
-    #
-    # thresholds = (-1, 10, 20, 500, 1000)
-    # mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
-    # new = SimReplication(austin, vaccines, mtp, 2000)
-    # # new.simulate_time_period(0, 150)
-    #
-    # start = time.time()
-    # InputOutputTools.load_vars_from_file(new, "sim_rep.json", "policy.json",
-    #                                     "v0.json", "v1.json",
-    #                                     "v2.json", "v3.json",
-    #                                     "random_epi_params_historical_period.json")
-    # print(time.time() - start)
-    # print(new.compute_rsq())
-    # new.rng = np.random.RandomState(100)
-    # new.simulate_time_period(150, 945)
-    # print(new.compute_rsq())
-    # print(new.policy.compute_cost())
-    #
-    # breakpoint()
-    #
-    # for i in range(4):
-    #     for attribute in vars(old.vaccine_groups[i]).keys():
-    #         print(attribute)
-    #         print(getattr(old.vaccine_groups[i], attribute))
-    #         print(getattr(new.vaccine_groups[i], attribute))
-    #         print("~~~~~~~~~~~~~~~~~")
-    #
-    # breakpoint()
-    #
-    # for attribute in vars(old).keys():
-    #     print(attribute)
-    #     print(getattr(old, attribute))
-    #     print(getattr(new, attribute))
-    #     print("~~~~~~~~~~~~~~~~~")
-    #
-    # for attribute in vars(old.epi_rand).keys():
-    #     print(attribute)
-    #     print(getattr(old.epi_rand, attribute))
-    #     print(getattr(new.epi_rand, attribute))
-    #     print("~~~~~~~~~~~~~~~~~")
-    #
-    # breakpoint()
-    #
-    # # for k in new.state_vars:
-    # #     print(k)
-    # #     # print(getattr(new, k))
-    # #     print(getattr(newnew, k))
-    # #     print("~~~~~~~~~~~~~~")
-
-    thresholds = (-1, 100, 200, 500, 1000)
-    mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
-    rep = SimReplication(austin, vaccines, mtp, 500)
-    rep.simulate_time_period(0, 945)
-    print(rep.compute_rsq())
-    print(rep.policy.compute_cost())

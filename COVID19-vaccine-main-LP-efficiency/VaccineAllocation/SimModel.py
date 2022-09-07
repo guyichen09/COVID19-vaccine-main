@@ -18,7 +18,7 @@ class SimReplication:
         self.policy = policy
 
         self.define_epi()
-        self.define_groups()
+        self.init_vaccine_groups()
 
         self.ICU_history = [np.zeros((A, L))]
         self.IH_history = [np.zeros((A, L))]
@@ -32,6 +32,21 @@ class SimReplication:
 
         self.state_vars = ("S", "E", "IA", "IY", "PA", "PY", "R", "D", "IH", "ICU")
         self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
+
+    def reset(self):
+
+        A = self.instance.A
+        L = self.instance.L
+
+        self.init_vaccine_groups()
+
+        self.ICU_history = [np.zeros((A, L))]
+        self.IH_history = [np.zeros((A, L))]
+
+        self.ToIHT_history = []
+        self.ToIY_history = []
+
+        self.next_t = 0
 
     def compute_ICU_violation(self):
 
@@ -56,7 +71,10 @@ class SimReplication:
 
     def define_epi(self):
 
-        self.rng = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
+        if self.rng_seed:
+            self.rng = np.random.RandomState(self.rng_seed) if self.rng_seed >= 0 else None
+        else:
+            self.rng = None
 
         epi_rand = copy.deepcopy(self.instance.base_epi)
         epi_rand.sample_random_params(self.rng)
@@ -64,7 +82,7 @@ class SimReplication:
 
         self.epi_rand = epi_rand
 
-    def define_groups(self):
+    def init_vaccine_groups(self):
         '''
              Define different vaccine groups.
              {
@@ -115,7 +133,10 @@ class SimReplication:
                 v_groups.S -= moving_people
                 self.vaccine_groups[3].S += moving_people
 
-    def simulate_time_period(self, time_start, time_end):
+    def simulate_time_period(self, time_end, time_start=None):
+
+        if not time_start:
+            time_start = self.next_t
 
         for t in range(time_start, time_end):
 
@@ -162,7 +183,7 @@ class SimReplication:
                                    self.instance.cal.fixed_cocooning[t],
                                    self.instance.cal.fixed_transmission_reduction[t],
                                    N / N.sum(),
-                                   self.instance.cal.get_day_type(t))
+                                   self.instance.cal._day_type[t])
         else:
             #  ToIHT, IH, ToIY, ICU
             self.policy(t, self.ToIHT_history, self.IH_history, self.ToIY_history, self.ICU_history)
@@ -171,7 +192,7 @@ class SimReplication:
                                    self.policy.tiers[current_tier]["cocooning"],
                                    self.policy.tiers[current_tier]["transmission_reduction"],
                                    N / N.sum(),
-                                   self.instance.cal.get_day_type(t))
+                                   self.instance.cal._day_type[t])
 
         if calendar[t] >= self.instance.delta_start:
             days_since_delta_start = (calendar[t] - self.instance.delta_start).days
@@ -197,15 +218,6 @@ class SimReplication:
                 epi.update_icu_params(kwargs["rd_rate"])
         else:
             epi.update_icu_all(t,self.instance.otherInfo)
-
-        # sigma_E, pi, gamma_IY, alpha4
-        # gamma_IA, rho_A, rho_Y,
-        # Eta, rIH, nu, mu,
-        # gamma_IH, nu_ICU, mu_ICU,
-        # gamma_ICU,
-        # immune_evasion
-        # omega_PY, omega_PA, omega_IA, omega_IY,
-        # beta, tau
 
         rate_E = self.discrete_approx(epi.sigma_E, self.step_size)
         rate_IYR = self.discrete_approx(np.array([[(1 - epi.pi[a, l]) * epi.gamma_IY * (1 - epi.alpha4) for l in range(L)] for a in range(A)]), self.step_size)
@@ -321,27 +333,6 @@ class SimReplication:
             for attribute in self.tracking_vars:
                 setattr(v_groups, attribute, getattr(v_groups, "_" + attribute).sum(axis=0))
 
-            # v_groups.S = v_groups._S[self.step_size].copy()
-            # v_groups.E = v_groups._E[self.step_size].copy()
-            # v_groups.IA = v_groups._IA[self.step_size].copy()
-            # v_groups.IY = v_groups._IY[self.step_size].copy()
-            # v_groups.PA = v_groups._PA[self.step_size].copy()
-            # v_groups.PY = v_groups._PY[self.step_size].copy()
-            # v_groups.R = v_groups._R[self.step_size].copy()
-            # v_groups.D = v_groups._D[self.step_size].copy()
-            # v_groups.IH = v_groups._IH[self.step_size].copy()
-            # v_groups.ICU = v_groups._ICU[self.step_size].copy()
-            #
-            # v_groups.IYIH = v_groups._IYIH.sum(axis=0)
-            # v_groups.IYICU = v_groups._IYICU.sum(axis=0)
-            # v_groups.IHICU = v_groups._IHICU.sum(axis=0)
-            # v_groups.ToICU = v_groups._ToICU.sum(axis=0)
-            # v_groups.ToIHT = v_groups._ToIHT.sum(axis=0)
-            # v_groups.ToICUD = v_groups._ToICUD.sum(axis=0)
-            # v_groups.ToIYD = v_groups._ToIYD.sum(axis=0)
-            # v_groups.ToIY = v_groups._ToIY.sum(axis=0)
-            # v_groups.ToIA = v_groups._ToIA.sum(axis=0)
-
         if calendar[t] == self.instance.omicron_start:
             # Move almost half of the people from recovered to susceptible:
             self.immune_escape(epi.immune_escape_rate, t)
@@ -418,38 +409,6 @@ class SimReplication:
 
             for attribute in self.tracking_vars:
                 setattr(v_groups, "_" + attribute, np.zeros((self.step_size, A, L)))
-
-            # v_groups._S = np.zeros((self.step_size + 1, A, L))
-            # v_groups._E = np.zeros((self.step_size + 1, A, L))
-            # v_groups._IA = np.zeros((self.step_size + 1, A, L))
-            # v_groups._IY = np.zeros((self.step_size + 1, A, L))
-            # v_groups._PA = np.zeros((self.step_size + 1, A, L))
-            # v_groups._PY = np.zeros((self.step_size + 1, A, L))
-            # v_groups._IH = np.zeros((self.step_size + 1, A, L))
-            # v_groups._ICU = np.zeros((self.step_size + 1, A, L))
-            # v_groups._R = np.zeros((self.step_size + 1, A, L))
-            # v_groups._D = np.zeros((self.step_size + 1, A, L))
-
-            # v_groups._IYIH = np.zeros((self.step_size, A, L))
-            # v_groups._IYICU = np.zeros((self.step_size, A, L))
-            # v_groups._IHICU = np.zeros((self.step_size, A, L))
-            # v_groups._ToICU = np.zeros((self.step_size, A, L))
-            # v_groups._ToIHT = np.zeros((self.step_size, A, L))
-            # v_groups._ToICUD = np.zeros((self.step_size, A, L))
-            # v_groups._ToIYD = np.zeros((self.step_size, A, L))
-            # v_groups._ToIA = np.zeros((self.step_size, A, L))
-            # v_groups._ToIY = np.zeros((self.step_size, A, L))
-
-            # v_groups._S[0] = v_groups.S
-            # v_groups._E[0] = v_groups.E
-            # v_groups._IA[0] = v_groups.IA
-            # v_groups._IY[0] = v_groups.IY
-            # v_groups._PA[0] = v_groups.PA
-            # v_groups._PY[0] = v_groups.PY
-            # v_groups._R[0] = v_groups.R
-            # v_groups._D[0] = v_groups.D
-            # v_groups._IH[0] = v_groups.IH
-            # v_groups._ICU[0] = v_groups.ICU
 
     def rv_gen(self, n, p, round_opt=1):
 
