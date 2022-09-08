@@ -38,8 +38,8 @@
 #   instances of SimReplication to load and export
 #   simulation states and data.
 # OptTools contains utility functions for optimization purposes.
-import copy
 
+import copy
 from SimObjects import MultiTierPolicy
 from DataObjects import City, TierInfo, Vaccine
 from SimModel import SimReplication
@@ -132,11 +132,45 @@ print(rep.compute_rsq())
 # After simulating, we can query the cost of the specified policy.
 print(rep.compute_cost())
 
+# If we want to test the same policy on a different sample path,
+#   we can still use the same policy object as long as we clear it.
+mtp.reset()
+
+# Now we create an instance of SimReplication with seed 1010.
+rep = SimReplication(austin, vaccines, mtp, 1010)
+
+# Compare the R-squared and costs of seed 1010 versus seed 500.
+rep.simulate_time_period(800)
+print(rep.compute_rsq())
+print(rep.compute_cost())
+
+# Note that calling rep.compute_rsq() if rep has not yet
+#   been simulated, or it has been cleared, leads to an error.
+# Calling rep.compute_cost() if there is no policy attached
+#   to the replication (i.e., if rep.policy = None) leads to an error.
+#   Similarly, we also need to simulate rep (with a policy attached)
+#   *past* the historical time period so that the policy goes
+#   into effect before querying its cost.
+
+# Clearing an instance of SimReplication is a bit tricky, so
+#   be careful of this nuance. The following reset() method
+#   clears the replication ("zero-ing" any saved data
+#   as well as the current time).
+# However, the randomly sampled parameters remain the same!
+#   These are untouched.
+# The random number generator is also untouched after
+#   reset(), so simulating rep will draw random numbers
+#   from where the random number generator last left off
+#   (before the reset).
+rep.reset()
+
 ###############################################################################
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Example B: Stopping and starting a simulation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Other examples to add -- stay tuned
-# Reset policy
-# Reset simulation rep (while saving the sampled parameters)
 # Stopping and starting simulation rep within a Python session
 # Externally exporting and importing a simulation rep across computers and sessions
 # A note on how the instance of EpiSetup is kind of a simulation object
