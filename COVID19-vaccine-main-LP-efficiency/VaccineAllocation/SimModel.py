@@ -48,9 +48,19 @@ class SimReplication:
 
         self.next_t = 0
 
-    def compute_ICU_violation(self):
+    def compute_cost(self):
+        return sum(self.policy.tiers[i]['daily_cost'] for i in self.policy.tier_history if i is not None)
 
-        return np.any(np.array(self.ICU_history).sum(axis=(1, 2))[self.t_historical_data_end:] > self.instance.icu)
+    def compute_feasibility(self):
+
+        if self.next_t < self.t_historical_data_end:
+            return None
+
+        # Check ICU violation
+        if np.any(np.array(self.ICU_history).sum(axis=(1, 2))[self.t_historical_data_end:] > self.instance.icu):
+            return False
+        else:
+            return True
 
     def compute_rsq(self):
 

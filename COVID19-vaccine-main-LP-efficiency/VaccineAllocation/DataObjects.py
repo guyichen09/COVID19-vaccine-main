@@ -629,9 +629,6 @@ class EpiSetup:
         self.YHR0 = self.YHR
         self.YHR_overall0 = self.YHR_overall
 
-        self.gamma_ICU0 = self.gamma_ICU.copy().reshape(len(self.gamma_ICU), 1)
-        self.mu_ICU0 = self.mu_ICU.copy().reshape(len(self.gamma_ICU), 1)
-
         # if gamma_IH and mu are lists, reshape them for right dimension
         if isinstance(self.gamma_IH, np.ndarray):
             self.gamma_IH = self.gamma_IH.reshape(self.gamma_IH.size, 1)

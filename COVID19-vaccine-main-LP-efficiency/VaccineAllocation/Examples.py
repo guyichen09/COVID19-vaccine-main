@@ -12,11 +12,11 @@
 # Note that if modules cannot be found, this is a path problem.
 # In both fixes below, replace <NAME_OF_YOUR_DIRECTORY> with a string
 #   containing the directory in which the modules reside.
-# (1) The following path can be updated via the OS command line or Terminal
-#   (e.g. on a cluster):
+# (1) The following path can be updated via the OS command line or
+#   Terminal (e.g. on a cluster):
 #   export PYTHONPATH=<NAME_OF_YOUR_DIRECTORY>:$PYTHONPATH
-# (2) The following code can be added to the main .py script file (e.g. can be added to
-#   the top of this document):
+# (2) The following code can be added to the main .py script file
+#   (e.g. can be added to the top of this document):
 #   import sys
 #   sys.path.append(<NAME_OF_YOUR_DIRECTORY>)
 
@@ -56,8 +56,8 @@ import numpy as np
 #   the simulation code. The specific names of the files used may change.
 # Each simulation replication requires these 3 instances
 #   (built from reading .json and .csv files)
-# (1) City instance that holds calendar, city-specific epidemiological parameters,
-#   historical hospital data, and fitted transmission parameters
+# (1) City instance that holds calendar, city-specific epidemiological
+#   parameters, historical hospital data, and fitted transmission parameters
 # (2) TierInfo instance that contains information about the tiers in a
 #   social distancing threshold policy
 # (3) Vaccine instance that holds vaccine groups and historical
@@ -88,15 +88,12 @@ vaccines = Vaccine(austin,
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # In general, simulating a policy requires the steps
-# (1) Create a MultiTierPolicy instance with
-#   desired thresholds.
-# (2) Create a SimReplication instance with
-#   aforementioned policy and a random number seed --
-#   this seed dictates the randomly sampled
-#   epidemiological parameters for that replication
-#   as well as the binomial random variable
-#   transitions between compartments in the SEIR-type
-#   model.
+# (1) Create a MultiTierPolicy instance with desired thresholds.
+# (2) Create a SimReplication instance with  aforementioned policy
+#   and a random number seed -- this seed dictates the randomly sampled
+#   epidemiological parameters for that replication as well as the
+#   binomial random variable transitions between compartments in the
+#   SEIR-type model.
 # (3) Advance simulation time.
 
 # Specify the 5 thresholds for a 5-tier policy
@@ -106,40 +103,34 @@ thresholds = (-1, 100, 200, 500, 1000)
 #   austin, tiers (defined above)
 #   thresholds (defined above)
 #   "green" as the community_transmission toggle
-# Prof Morton mentioned that setting community_transmission
-#   to "green" was a government official request to stop
-#   certain "drop-offs" in active tiers
+# Prof Morton mentioned that setting community_transmission to "green"
+#   was a government official request to stop certain "drop-offs"
+#   in active tiers.
 mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
 
-# Create an instance of SimReplication with the
-#   random number seed 500.
+# Create an instance of SimReplication with seed 500.
 rep = SimReplication(austin, vaccines, mtp, 500)
 
-# Note that specifying a seed of -1 creates
-#   a simulation replication with
-#   average values for the "random"
-#   epidemiological parameter values and deterministic
-#   binomial transitions (also taking average values).
+# Note that specifying a seed of -1 creates a simulation replication
+#   with average values for the "random" epidemiological parameter
+#   values and deterministic binomial transitions
+#   (also taking average values).
 
 # Advance simulation time until a desired end day.
-# Currently, any nonnegative number between 0 and 963
-#   (the length of the user-specified "calendar.csv")
-#   works.
-# Attributes in the SimReplication instance are
-#   updated in-place to reflect the most current
-#   simulation state.
+# Currently, any non-negative integer between 0 and 963 (the length
+#   of the user-specified "calendar.csv") works.
+# Attributes in the SimReplication instance are updated in-place
+#   to reflect the most current simulation state.
 rep.simulate_time_period(800)
 
 # After simulating, we can query the R-squared.
-# If the simulation has been simulated for fewer
-#   days than the timeframe of the historical time
-#   period, the R-squared is computed for this
-#   subset of days.
+# If the simulation has been simulated for fewer days than the
+#   timeframe of the historical time period, the R-squared is
+#   computed for this subset of days.
 print(rep.compute_rsq())
 
-# After simulating, we can query the cost
-#   of the specified policy.
-print(rep.policy.compute_cost())
+# After simulating, we can query the cost of the specified policy.
+print(rep.compute_cost())
 
 ###############################################################################
 
@@ -148,6 +139,7 @@ print(rep.policy.compute_cost())
 # Reset simulation rep (while saving the sampled parameters)
 # Stopping and starting simulation rep within a Python session
 # Externally exporting and importing a simulation rep across computers and sessions
-
+# A note on how the instance of EpiSetup is kind of a simulation object
+#   and a data object...
 
 

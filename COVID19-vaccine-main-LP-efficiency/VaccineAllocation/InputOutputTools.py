@@ -47,11 +47,11 @@ import copy
 #   for saving a simulation replication or loading a simulation replication
 #   from a timepoint t > 0 (rather than starting over from scratch)
 SimReplication_IO_var_names = ("rng_seed",
-                     "ICU_history", "IH_history", "ToIHT_history", "ToIY_history",
-                     "next_t",
-                     "S", "E", "IA", "IY", "PA", "PY", "R", "D",
-                     "IH", "ICU", "IYIH", "IYICU", "IHICU",
-                     "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
+                               "ICU_history", "IH_history", "ToIHT_history", "ToIY_history",
+                               "next_t",
+                               "S", "E", "IA", "IY", "PA", "PY", "R", "D",
+                               "IH", "ICU", "IYIH", "IYICU", "IHICU",
+                               "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
 
 # List of names of SimReplication attributes that are lists of arrays
 SimReplication_IO_list_of_arrays_var_names = ("ICU_history", "IH_history",
@@ -59,12 +59,12 @@ SimReplication_IO_list_of_arrays_var_names = ("ICU_history", "IH_history",
 
 # List of names of SimReplication attributes that are arrays
 SimReplication_IO_arrays_var_names = ("S", "E", "IA", "IY", "PA", "PY", "R", "D",
-                     "IH", "ICU", "IYIH", "IYICU", "IHICU",
-                     "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
+                                      "IH", "ICU", "IYIH", "IYICU", "IHICU",
+                                      "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
 
 # List of names of VaccineGroup attributes to be serialized as a .json file
 VaccineGroup_IO_var_names = ("v_beta_reduct", "v_tau_reduct", "v_beta_reduct_delta",
-                                  "v_tau_reduct_delta", "v_tau_reduct_omicron") \
+                             "v_tau_reduct_delta", "v_tau_reduct_omicron") \
                             + SimReplication_IO_arrays_var_names
 
 # List of names of VaccineGroup attributes that are arrays
@@ -72,15 +72,16 @@ VaccineGroup_IO_arrays_var_names = SimReplication_IO_arrays_var_names
 
 # List of names of MultiTierPolicy attributes to be serialized as a .json file
 MultiTierPolicy_IO_var_names = ("community_transmission",
-                                     "lockdown_thresholds",
-                                     "tier_history")
+                                "lockdown_thresholds",
+                                "tier_history")
 
 ###############################################################################
 
-def load_vars_from_file(sim_rep, sim_rep_filename,
-                       vaccine_group_v0_filename, vaccine_group_v1_filename,
-                       vaccine_group_v2_filename, vaccine_group_v3_filename,
-                        random_params_filename=None, multi_tier_policy_filename=None):
+def import_rep_from_json(sim_rep, sim_rep_filename,
+                         vaccine_group_v0_filename, vaccine_group_v1_filename,
+                         vaccine_group_v2_filename, vaccine_group_v3_filename,
+                         multi_tier_policy_filename=None,
+                         random_params_filename=None):
     '''
     Modifies a SimReplication object sim_rep in place to match the
         last state of a previously run simulation replication
@@ -120,7 +121,7 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
 
     # Update vaccine group variables
     vaccine_group_filenames = [vaccine_group_v0_filename, vaccine_group_v1_filename,
-                       vaccine_group_v2_filename, vaccine_group_v3_filename]
+                               vaccine_group_v2_filename, vaccine_group_v3_filename]
 
     for i in range(len(vaccine_group_filenames)):
         vaccine_group = sim_rep.vaccine_groups[i]
@@ -140,18 +141,18 @@ def load_vars_from_file(sim_rep, sim_rep_filename,
     # (Optional) update epidemiological parameters
     if random_params_filename is not None:
 
-        # Load randomly sampled epi parameters
-        d = json.load(open(random_params_filename))
-        load_vars_from_dict(epi_rand, d)
-
-        # Update sim_rep.epi_rand accordingly
         # Create a copy of the base epi parameters that do not change
         #   across simulation replications
+        # Load randomly sampled epi parameters
+        epi_rand = copy.deepcopy(sim_rep.instance.base_epi)
+        d = json.load(open(random_params_filename))
+        load_vars_from_dict(epi_rand, d, d.keys())
+
+        # Update sim_rep.epi_rand accordingly
         # Update the dictionary storing randomly sampled parameters
         # Recompute key quantities that depend on the randomly
         #   sampled parameters
         # Modify sim_rep.epi_rand in place to reflected loaded changes
-        epi_rand = copy.deepcopy(sim_rep.instance.base_epi)
         epi_rand.random_params_dict = d
         epi_rand.setup_base_params()
         sim_rep.epi_rand = epi_rand
@@ -176,7 +177,7 @@ def load_vars_from_dict(simulation_object, loaded_dict, keys_to_convert_to_array
         else:
             setattr(simulation_object, k, loaded_dict[k])
 
-def export_rep_to_file(sim_rep, sim_rep_filename,
+def export_rep_to_json(sim_rep, sim_rep_filename,
                        vaccine_group_v0_filename, vaccine_group_v1_filename,
                        vaccine_group_v2_filename, vaccine_group_v3_filename,
                        multi_tier_policy_filename=None, random_params_filename=None):
@@ -187,7 +188,7 @@ def export_rep_to_file(sim_rep, sim_rep_filename,
         (optional) to respective .json files, so that the current simulation
         replication state can be saved and started from the last save point.
 
-    Function parameters are the same as function load_vars_from_file parameters.
+    Function parameters are the same as function import_rep_from_json parameters.
 
     :param sim_rep: [SimReplication obj]
     :param sim_rep_filename: [str] .json file with entries corresponding to

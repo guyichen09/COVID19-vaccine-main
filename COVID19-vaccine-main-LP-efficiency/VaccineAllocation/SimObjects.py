@@ -32,10 +32,6 @@ class MultiTierPolicy:
     def reset(self):
         self.tier_history = None
 
-    def compute_cost(self):
-        return sum(
-            self.tiers[i]['daily_cost'] for i in self.tier_history if i is not None and i in range(len(self.tiers)))
-
     def __repr__(self):
         return str(self.lockdown_thresholds)
 
