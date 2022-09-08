@@ -46,14 +46,20 @@ def evaluate_policies_on_sample_paths(thresholds_array, RNG, num_reps, base_file
                                       processor_count_total):
 
     policies_array = np.array([MultiTierPolicy(austin, tiers, thresholds, "green") for thresholds in thresholds_array])
-    num_policies = len(policies_array)
-    num_policies_per_processor = int(np.floor(num_policies / processor_count_total))
 
-    policies_ix_processor = np.arange(processor_rank * num_policies_per_processor,
-                                      (processor_rank + 1) * num_policies_per_processor)
-    if processor_rank == processor_count_total - 1:
-        policies_ix_processor = np.arange(processor_rank * num_policies_per_processor,
-                                          processor_rank * num_policies_per_processor + num_policies % processor_count_total)
+    # Some processors have min_num_policies_per_processor
+    # Others have min_num_policies_per_processor + 1
+    num_policies = len(policies_array)
+    min_num_policies_per_processor = int(np.floor(num_policies / processor_count_total))
+    leftover_num_policies = num_policies % processor_count_total
+
+    if processor_rank in np.arange(leftover_num_policies):
+        start_point = processor_rank * (min_num_policies_per_processor + 1)
+        policies_ix_processor = np.arange(start_point, start_point + (min_num_policies_per_processor + 1))
+    else:
+        start_point = (min_num_policies_per_processor + 1) * leftover_num_policies + \
+                      (processor_rank - leftover_num_policies) * min_num_policies_per_processor
+        policies_ix_processor = np.arange(start_point, start_point + min_num_policies_per_processor)
 
     if rank == 0:
         print(num_policies_per_processor)
@@ -99,7 +105,7 @@ def evaluate_policies_on_sample_paths(thresholds_array, RNG, num_reps, base_file
         if rank == 0:
             print(time.time() - start)
 
-thresholds_array = thresholds_generator((0,14,1), (0,100,10), (0,100,10), (0,100,10))
+thresholds_array = thresholds_generator((0,14,1), (0,100,10), (0,100,10), (0,100,20))
 # thresholds_array = [(-1, 1, 10, 100, 200), (-1, 5, 15, 25, 50)]
 rng = np.random.RandomState(100+rank)
 base_identifier = "0_"
