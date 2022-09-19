@@ -41,8 +41,11 @@ class SimReplication:
         # Initialize data structures to track ICU, IH, ToIHT, ToIY
         self.ICU_history = [np.zeros((A, L))]
         self.IH_history = [np.zeros((A, L))]
+        self.D_history = [np.zeros((A, L))]
         self.ToIHT_history = []
         self.ToIY_history = []
+        self.ToICUD_history = []
+        self.ToIYD_history = []
 
         # The next t that is simulated (automatically gets updated after simulation)
         # This instance has simulated up to but not including time next_t
@@ -172,9 +175,12 @@ class SimReplication:
 
             self.ICU_history.append(self.ICU)
             self.IH_history.append(self.IH)
-
+            self.D_history.append(self.D)
+            
             self.ToIHT_history.append(self.ToIHT)
             self.ToIY_history.append(self.ToIY)
+            self.ToICUD_history.append(self.ToICUD)
+            self.ToIYD_history.append(self.ToIYD)
 
             total_imbalance = np.sum(self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU) - np.sum(self.instance.N)
 

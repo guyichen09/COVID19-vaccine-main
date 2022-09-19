@@ -156,7 +156,8 @@ class City:
 
         with open(str(self.path_to_data / config_filename), 'r') as input_file:
             self.config = json.load(input_file)
-
+        
+        self.epi_rand = None
         self.load_data(setup_filename,
                        calendar_filename,
                        hospitalization_filename,
@@ -198,6 +199,8 @@ class City:
             self.start_date = dt.datetime.strptime(data['start_date'], datetime_formater)
             self.end_date = dt.datetime.strptime(data['end_date'], datetime_formater)
             self.last_date_interventions = dt.datetime.strptime(data['last_date_interventions'], datetime_formater)
+            self.param_fitting_start_date = dt.datetime.strptime(data['param_fitting_start_date'], datetime_formater)
+            self.param_fitting_end_date = dt.datetime.strptime(data['param_fitting_end_date'], datetime_formater)
             self.school_closure_period = []
             for blSc in range(len(data['school_closure'])):
                 self.school_closure_period.append([
@@ -212,30 +215,16 @@ class City:
         self.weekday_holidays = list(cal_df['Date'][cal_df['Calendar'] == 3])
         self.weekday_longholidays = list(cal_df['Date'][cal_df['Calendar'] == 4])
 
-        if hospitalization_filename is not None:
-            self.real_hosp = self.read_hosp_related_data(hospitalization_filename)
-        else:
-            self.real_hosp = None
-
-        if hosp_icu_filename is not None:
-            self.real_hosp_icu = self.read_hosp_related_data(hosp_icu_filename)
-        else:
-            self.real_hosp_icu = None
-
-        if hosp_admission_filename is not None:
-            self.real_hosp_ad = self.read_hosp_related_data(hosp_admission_filename)
-        else:
-            self.real_hosp_ad = None
-
-        if death_from_hosp_filename is not None:
-            self.real_death_hosp = self.read_hosp_related_data(death_from_hosp_filename)
-        else:
-            self.real_death_hosp = None
+        self.real_hosp = self.read_hosp_related_data(hospitalization_filename) if hospitalization_filename is not None else None 
         
-        if death_total_filename is not None:
-            self.real_death_total = self.read_hosp_related_data(death_total_filename)
-        else:
-            self.real_death_total = None
+        self.real_hosp_icu = self.read_hosp_related_data(hosp_icu_filename) if hosp_icu_filename is not None else None
+
+        self.real_hosp_ad = self.read_hosp_related_data(hosp_admission_filename) if hosp_admission_filename is not None else None
+
+        self.real_death_hosp = self.read_hosp_related_data(death_from_hosp_filename) if death_from_hosp_filename is not None else None
+        
+        self.real_death_total = self.read_hosp_related_data(death_total_filename) if death_total_filename is not None else None
+       
 
         df_delta = pd.read_csv(
             str(self.path_to_data / delta_prevalence_filename),
@@ -280,7 +269,7 @@ class City:
     def process_data(self, transmission_filename):
         '''
             Compute couple parameters (i.e., parameters that depend on the input)
-            and build th simulation calendar.
+            and build the simulation calendar.
         '''
 
         # Dimension variables
@@ -500,6 +489,7 @@ class Vaccine:
         self.vaccine_proportion = [amount for amount in vaccine_allocation_data['vaccine_amount']]
 
         self.vaccine_start_time = np.where(np.array(instance.cal.calendar) == self.actual_vaccine_time[0])[0]
+        print(self.vaccine_start_time)
 
         v_first_allocation = []
         v_second_allocation = []
