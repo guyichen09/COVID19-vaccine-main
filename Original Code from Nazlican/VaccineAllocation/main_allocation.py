@@ -2,7 +2,7 @@ if __name__ == '__main__':
 
     import time
     start = time.time()
-    print(time.time())
+    # print(time.time())
 
     import sys
     # sys.path.append("/home/lpei/scratch/06202022/COVID19-vaccine-main/VaccineAllocation")

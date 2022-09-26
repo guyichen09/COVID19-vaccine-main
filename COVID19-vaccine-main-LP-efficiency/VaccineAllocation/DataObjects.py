@@ -14,6 +14,7 @@ WEEKEND = 2
 HOLIDAY = 3
 LONG_HOLIDAY = 4
 
+
 class SimCalendar:
     '''
         A simulation calendar to map time steps to days. This class helps
@@ -136,6 +137,7 @@ class SimCalendar:
             startMonth = dateG.month + 1
             startYear = dateG.year
         return dt.datetime(startYear, startMonth, 1)
+
 
 class City:
     def __init__(self, city,
@@ -296,12 +298,14 @@ class City:
         # Save calendar
         self.cal = cal
 
+
 class TierInfo:
     def __init__(self, city, tier_filename):
         self.path_to_data = base_path / "instances" / f"{city}"
         with open(str(self.path_to_data / tier_filename), 'r') as tier_input:
             tier_data = json.load(tier_input)
             self.tier = tier_data['tiers']
+
 
 class Vaccine:
     '''
@@ -312,6 +316,7 @@ class Vaccine:
             booster_allocation_data: (dict) contains booster schedule, supply and allocation data.
             instance: data instance
     '''
+
     def __init__(self, instance, city,
                  vaccine_filename,
                  booster_filename,
@@ -409,13 +414,13 @@ class Vaccine:
             event = self.event_lookup(vaccine_type, date)
             if event is not None:
                 for i in range(event):
-                    N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+                    N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr, 1))
             else:
                 if date > self.vaccine_allocation[vaccine_type][0]["supply"]["time"]:
                     i = 0
                     event_date = self.vaccine_allocation[vaccine_type][i]["supply"]["time"]
                     while event_date < date:
-                        N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+                        N_in += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr, 1))
                         if i + 1 == len(self.vaccine_allocation[vaccine_type]):
                             break
                         i += 1
@@ -425,13 +430,13 @@ class Vaccine:
             event = self.event_lookup(vaccine_type, date)
             if event is not None:
                 for i in range(event):
-                    N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+                    N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr, 1))
             else:
                 if date > self.vaccine_allocation[vaccine_type][0]["supply"]["time"]:
                     i = 0
                     event_date = self.vaccine_allocation[vaccine_type][i]["supply"]["time"]
                     while event_date < date:
-                        N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr,1))
+                        N_out += self.vaccine_allocation[vaccine_type][i]["assignment"].reshape((total_risk_gr, 1))
                         if i + 1 == len(self.vaccine_allocation[vaccine_type]):
                             break
                         i += 1
@@ -474,10 +479,10 @@ class Vaccine:
             vac_assignment = np.array(vaccine_allocation_data[age_risk_columns].iloc[i]).reshape((5, 2))
 
             if np.sum(vac_assignment) > 0:
-                pro_round = vac_assignment/np.sum(vac_assignment)
+                pro_round = vac_assignment / np.sum(vac_assignment)
             else:
                 pro_round = np.zeros((5, 2))
-            within_proportion = vac_assignment/N
+            within_proportion = vac_assignment / N
 
             # First dose vaccine allocation:
             supply_first_dose = {'time': self.first_dose_time[i],
@@ -530,10 +535,10 @@ class Vaccine:
                 vac_assignment = np.array(booster_allocation_data[age_risk_columns].iloc[i]).reshape((5, 2))
 
                 if np.sum(vac_assignment) > 0:
-                    pro_round = vac_assignment/np.sum(vac_assignment)
+                    pro_round = vac_assignment / np.sum(vac_assignment)
                 else:
                     pro_round = np.zeros((5, 2))
-                within_proportion = vac_assignment/N
+                within_proportion = vac_assignment / N
 
                 # Booster dose vaccine allocation:
                 supply_booster_dose = {'time': self.booster_time[i],
@@ -553,6 +558,7 @@ class Vaccine:
                 'v_booster': v_booster_allocation,
                 'v_wane': v_wane_allocation}
 
+
 class EpiSetup:
     '''
         A setup for the epidemiological parameters.
@@ -567,8 +573,8 @@ class EpiSetup:
             self.qInt['testStart'] = dt.datetime.strptime(self.qInt['testStart'], datetime_formater)
         except:
             setattr(self, "qInt", {'testStart': end_date,
-                                       'qRate': {'IY': 0, 'IA': 0, 'PY': 0, 'PA': 0},
-                                       'randTest': 0})
+                                   'qRate': {'IY': 0, 'IA': 0, 'PY': 0, 'PA': 0},
+                                   'randTest': 0})
 
         # Parameters that are randomly sampled for each replication
         self.random_params_dict = {}
@@ -629,6 +635,14 @@ class EpiSetup:
         self.YHR0 = self.YHR
         self.YHR_overall0 = self.YHR_overall
 
+        # LP Edit
+        # Uncomment this and comment out the other overriding of the 0-variables
+        #   under update_nu_params
+        # THE RESULTS ARE DIFFERENT -- THE RESULTS SHOULD NOT DEPEND ON
+        #   WHETHER OR NOT THE VARIABLES ARE AN ARRAY
+        # self.gamma_ICU0 = self.gamma_ICU.reshape(self.gamma_ICU.size, 1)
+        # self.mu_ICU0 = self.mu_ICU.reshape(self.mu_ICU.size, 1)
+
         # if gamma_IH and mu are lists, reshape them for right dimension
         if isinstance(self.gamma_IH, np.ndarray):
             self.gamma_IH = self.gamma_IH.reshape(self.gamma_IH.size, 1)
@@ -674,11 +688,11 @@ class EpiSetup:
 
         # Rate of transition from ICU to death -- increases with Delta
         self.mu_ICU = mu_ICU0 * (1 + self.alpha3) * (1 - prev) + \
-                    self.mu_ICU0 * 0.65 * (1 + self.alpha3_delta) * prev
+                      self.mu_ICU0 * 0.65 * (1 + self.alpha3_delta) * prev
 
         # Rate of recovery from IH -- decreases with Delta
         self.gamma_IH = gamma_IH0 * (1 - self.alpha2) * (1 - prev) + \
-                    gamma_IH0 * (1 - self.alpha2_delta) * prev
+                        gamma_IH0 * (1 - self.alpha2_delta) * prev
 
         self.alpha4 = self.alpha4_delta * prev + self.alpha4 * (1 - prev)
 
@@ -819,6 +833,7 @@ class EpiSetup:
             phi_age_risk[-1, :, :, :] = (1 - cocooning) * phi_age_risk_copy[-1, :, :, :]
         assert (phi_age_risk >= 0).all()
         return phi_age_risk
+
 
 class ParamDistribution:
     '''
