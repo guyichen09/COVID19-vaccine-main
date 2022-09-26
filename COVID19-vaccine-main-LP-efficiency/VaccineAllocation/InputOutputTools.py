@@ -170,7 +170,7 @@ def load_vars_from_dict(simulation_object, loaded_dict, keys_to_convert_to_array
         simulation_object is an instance of EpiSetup
     :param keys_to_convert_to_array: [list, optional] list of strings (subset of loaded_dict.keys())
         with values to convert from lists to arrays when assigned to simulation_object.
-    :return: None
+    :return: [None]
     '''
     for k in loaded_dict.keys():
         if k in keys_to_convert_to_array and isinstance(loaded_dict[k], list):

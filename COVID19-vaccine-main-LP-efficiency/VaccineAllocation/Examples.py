@@ -91,6 +91,9 @@ vaccines = Vaccine(austin,
 
 ###############################################################################
 
+# The following examples build on each other, so it is
+#   recommended to study them in order.
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Example A: Simulating a threshold policy
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -129,7 +132,7 @@ rep = SimReplication(austin, vaccines, None, None)
 #   of the user-specified "calendar.csv") works.
 # Attributes in the SimReplication instance are updated in-place
 #   to reflect the most current simulation state.
-rep.simulate_time_period(766)
+rep.simulate_time_period(945)
 
 # After simulating, we can query the R-squared.
 # If the simulation has been simulated for fewer days than the
@@ -145,6 +148,10 @@ plot_from_file(austin.path_to_data / "output.json", austin)
 # After simulating, we can query the cost of the specified policy.
 # print(rep.compute_cost())
 
+# We can also query whether the specified policy is
+#   feasible, i.e. whether it prevents an ICU capacity violation.
+print(rep.compute_feasibility())
+
 # If we want to test the same policy on a different sample path,
 #   we can still use the same policy object as long as we clear it.
 # mtp.reset()
@@ -153,13 +160,23 @@ plot_from_file(austin.path_to_data / "output.json", austin)
 # rep = SimReplication(austin, vaccines, mtp, 1010)
 
 # Compare the R-squared and costs of seed 1010 versus seed 500.
-# rep.simulate_time_period(800)
-# print(rep.compute_rsq())
-# print(rep.compute_cost())
+# Note that so far we are not simulating our policy on
+#   a "realistic" sample path -- here we just picked an arbitrary seed.
+rep.simulate_time_period(945)
+print(rep.compute_rsq())
+print(rep.compute_cost())
 
-# Note that calling rep.compute_rsq() if rep has not yet
-#   been simulated, or it has been cleared, leads to an error.
-# Calling rep.compute_cost() if there is no policy attached
+# Notice that the cost is 0. We can sanity-check this cost
+#   by confirming that no stage-alert thresholds were crossed
+#   and no social distancing cost was incurred over this
+#   time horizon.
+# Each policy has its tier history saved as an attribute.
+print(rep.policy.tier_history)
+
+# Note that calling compute_rsq, compute_cost, or compute_feasibility
+#   if rep has not yet been simulated, or it has been cleared, leads to
+#   an error.
+# Calling compute_cost if there is no policy attached
 #   to the replication (i.e., if rep.policy = None) leads to an error.
 #   Similarly, we also need to simulate rep (with a policy attached)
 #   *past* the historical time period so that the policy goes
@@ -197,17 +214,138 @@ x_bound = ([0, 0, 0, 0, 0, 0, 0, 0],
 
 # transmission = run_fit(austin, vaccines, change_dates,x_bound, initial_guess, 1.5, param1 , param2, param2, dt.datetime(2020, 4, 20), dt.datetime(2022, 4, 4))
 
-# save_output(transmission, austin)
+# Due to the nuances of the random number generation,
+#   in many cases it is more straightforward and less
+#   risky to simply create a new replication rather than
+#   reset the replication. We recommend this particularly
+#   when debugging and comparing numbers during code
+#   testing (since being careful with random number
+#   generation is necessary for perfectly replicable
+#   results).
+
 ###############################################################################
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Example B: Stopping and starting a simulation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Other examples to add -- stay tuned
-# Stopping and starting simulation rep within a Python session
-# Externally exporting and importing a simulation rep across computers and sessions
-# A note on how the instance of EpiSetup is kind of a simulation object
-#   and a data object...
+# Here we demonstrate how to start and stop a simulation replication
+#   both within a Python session and across Python sessions,
+#   potentially across different computers.
 
+# First we demonstrate starting and stopping a replication
+#   within a Python session.
+# Here we create a new a policy and attach it to a new replication.
+thresholds = (-1, 1, 10, 20, 100)
+mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
+rep = SimReplication(austin, vaccines, mtp, 1000)
 
+# Now we simulate the replication up to time 100
+rep.simulate_time_period(100)
+
+# Within a Python session, we can simulate from where
+#   we left off, at time 100.
+# We can simulate incrementally as many times as we want
+#   and in whatever increments we want, so long as the
+#   times are integer-valued.
+# Note that we can only start and stop at the beginning
+#   and end of whole days -- we cannot stop in the
+#   middle of a day or stop at a discretized step
+#   at time t.
+rep.simulate_time_period(200)
+
+# The method simulate_time_period will automatically start
+#   simulating from the last place we left off.
+rep.simulate_time_period(300)
+rep.simulate_time_period(945)
+print(rep.compute_rsq())
+
+# The attribute next_t in a simulation replication
+#   is the next time that will be simulated.
+print(rep.next_t)
+
+# Let's compare r-squared values to confirm that
+#   starting and stopping the simulation until time t
+#   within a session is identical to running
+#   the simulation continuously until time t.
+rep.policy.reset()
+rep = SimReplication(austin, vaccines, mtp, 1000)
+rep.simulate_time_period(945)
+print(rep.compute_rsq())
+
+# Next we demonstrate stopping and starting a simulation rep
+#   across a Python session, including across computers.
+
+# Let's simulate our policy up to time 300.
+rep.policy.reset()
+rep = SimReplication(austin, vaccines, mtp, 1000)
+rep.simulate_time_period(800)
+
+# Now we export the current state of the simulation
+#   as multiple .json files.
+# We pass the SimReplication object, a filename
+#   for the SimReplication object data, filenames
+#   for the 4 VaccineGroup objects, an optional
+#   filename for the MultiTierPolicy object, and
+#   an optional filename for the random parameters
+#   sampled in the EpiSetup object.
+# These files will save in the same directory as the
+#   main .py file.
+InputOutputTools.export_rep_to_json(rep, "sim_rep.json",
+                       "v0.json", "v1.json", "v2.json", "v3.json",
+                       "policy.json", "random_params.json")
+
+# To read-in previously saved simulation states,
+#   we create a new SimReplication instance and apply
+#   import_rep_from_json on it.
+# The files must be in the same directory as the main .py file.
+# Note the line about rep.rng -- we will explain this later.
+rep = SimReplication(austin, vaccines, mtp, 1000)
+InputOutputTools.import_rep_from_json(rep, "sim_rep.json",
+                       "v0.json", "v1.json", "v2.json", "v3.json",
+                       "policy.json", "random_params.json")
+rep.rng = np.random.RandomState(10000)
+
+# Now rep.next_time is 800, where we last left off.
+# We can simulate rep.next_time from this point.
+rep.simulate_time_period(945)
+
+# As another sanity check, let's compare the costs
+#   of this exported and imported simulation replication
+#   with a simulation replication that does not export or
+#   import data.
+print(rep.compute_cost())
+
+# Here are results from "internal" starting and stopping.
+rep.policy.reset()
+rep = SimReplication(austin, vaccines, mtp, 1000)
+rep.simulate_time_period(800)
+rep.rng = np.random.RandomState(10000)
+rep.simulate_time_period(945)
+print(rep.compute_cost())
+
+# Notice the line rep.rng = np.random.RandomState(10000)
+#   that is called after we import .json files for time 800
+#   when "externally" starting and stopping and
+#   is called after we simulate to time 800 when
+#   "internally" starting and stopping.
+# This resets the random number generator using seed
+#   10000. This is not required for starting and stopping
+#   a simulation, either externally or internally.
+# As discussed in Example A, to get perfectly recreatable
+#   results, we need to manage random number generation
+#   carefully. We cannot export the current state
+#   of a random number generator using RandomState.
+#   Therefore, to compare results of the "externally stopped"
+#   repl and the "internally stopped" rep for debugging,
+#   we need both replications to resume simulating from
+#   time 800 with the same random numbers. Therefore, we
+#   set the rng attribute to a random number generator object
+#   starting at the same place, using seed 10000.
+# The choice of seed numbers is arbitrary here, of course.
+#   The point is that we start random number generation
+#   from the same pointers.
+
+###############################################################################
+
+# More examples forthcoming -- stay tuned!
