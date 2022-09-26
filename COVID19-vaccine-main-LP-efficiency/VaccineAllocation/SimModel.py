@@ -10,6 +10,8 @@
 import numpy as np
 from SimObjects import VaccineGroup
 import copy
+import datetime as dt
+datetime_formater = '%Y-%m-%d %H:%M:%S'
 
 ###############################################################################
 
@@ -234,8 +236,10 @@ class SimReplication:
                 epi.variant_update_param(self.instance.variant_prev[days_since_variant_start])
 
         if self.instance.otherInfo == {}:
-            if t > kwargs["rd_start"] and t <= kwargs["rd_end"]:
-                epi.update_icu_params(kwargs["rd_rate"])
+            rd_start = dt.datetime.strptime(self.instance.config["rd_start"],datetime_formater)
+            rd_end = dt.datetime.strptime(self.instance.config["rd_end"],datetime_formater)
+            if t > self.instance.cal.calendar.index(rd_start) and t <= self.instance.cal.calendar.index(rd_end):
+                epi.update_icu_params(self.instance.config["rd_rate"])
         else:
             epi.update_icu_all(t,self.instance.otherInfo)
 

@@ -109,9 +109,9 @@ def run_fit(city,
                 ])
         
         cocoon = np.array([
-                opt_tr_reduction[1],
-                opt_tr_reduction[2],
-                opt_tr_reduction[3],
+                opt_tr_reduction[4],
+                opt_tr_reduction[5],
+                opt_tr_reduction[6],
                 ])
         print('beta_0:', city.epi_rand.beta)   
         print('SSE:', SSE)   
@@ -148,8 +148,9 @@ def run_fit(city,
     return df_transmission
  
 
-def save_output():
-    pass
+def save_output(transmission, instance):  
+    file_path = instance.path_to_data / 'transmission_lsq_test.csv'
+    transmission.to_csv(file_path, index = False)
 
 
 
@@ -160,6 +161,7 @@ def residual_error(x_variables, **kwargs):
     
     t_start = kwargs['t_start']
     t_end = kwargs['t_end']
+    print(t_end)
     w_icu = kwargs['w_icu']
     w_iyih = kwargs['w_iyih']
     w_d = kwargs['w_d']
@@ -206,9 +208,9 @@ def residual_error(x_variables, **kwargs):
                 x_variables[2],
                 x_variables[3],]
         
-        cocoon = [x_variables[1],
-                x_variables[2],
-                x_variables[3],]
+        cocoon = [x_variables[4],
+                x_variables[5],
+                x_variables[6],]
 
 
     tr_reduc = []
@@ -300,7 +302,7 @@ def residual_error(x_variables, **kwargs):
     residual_error_IH.extend(residual_error_death)
 
     #breakpoint()
-    print('residual error:', residual_error_IH)
+    # print('residual error:', residual_error_IH)
     return residual_error_IH 
 
 

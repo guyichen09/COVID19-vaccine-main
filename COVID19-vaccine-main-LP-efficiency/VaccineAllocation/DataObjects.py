@@ -198,9 +198,7 @@ class City:
             # Load simulation dates
             self.start_date = dt.datetime.strptime(data['start_date'], datetime_formater)
             self.end_date = dt.datetime.strptime(data['end_date'], datetime_formater)
-            self.last_date_interventions = dt.datetime.strptime(data['last_date_interventions'], datetime_formater)
-            self.param_fitting_start_date = dt.datetime.strptime(data['param_fitting_start_date'], datetime_formater)
-            self.param_fitting_end_date = dt.datetime.strptime(data['param_fitting_end_date'], datetime_formater)
+            # self.last_date_interventions = dt.datetime.strptime(data['last_date_interventions'], datetime_formater)
             self.school_closure_period = []
             for blSc in range(len(data['school_closure'])):
                 self.school_closure_period.append([

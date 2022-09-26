@@ -67,27 +67,27 @@ import numpy as np
 # (3) Vaccine instance that holds vaccine groups and historical
 #   vaccination data
 
-austin = City("austin",
-              "austin_test_IHT.json",
+cook = City("cook",
+              "cook_test_IHT.json",
               "calendar.csv",
-              "setup_data_Final.json",
-              "transmission.csv",
-              "austin_real_hosp_updated.csv",
-              "austin_real_icu_updated.csv",
-              "austin_hosp_ad_updated.csv",
-              "austin_real_death_from_hosp_updated.csv",
-              "austin_real_total_death.csv",
+              "setup_data_param_fit.json",
+              "transmission_lsq_test.csv",
+              "hosp.csv",
+              "icu.csv",
+              "admission.csv",
+              "cook_deaths_from_hosp_est.csv",
+              "cook_deaths.csv",
               "delta_prevalence.csv",
               "omicron_prevalence.csv",
               "variant_prevalence.csv")
 
-tiers = TierInfo("austin", "tiers5_opt_Final.json")
+tiers = TierInfo("cook", "tiers5_opt_Final.json")
 
-vaccines = Vaccine(austin,
-                   "austin",
+vaccines = Vaccine(cook,
+                   "cook",
                    "vaccines.json",
-                   "booster_allocation_fixed.csv",
-                   "vaccine_allocation_fixed.csv")
+                   "booster_allocation_fixed_scaled.csv",
+                   "vaccine_allocation_fixed_scaled.csv")
 
 ###############################################################################
 
@@ -104,58 +104,36 @@ vaccines = Vaccine(austin,
 #   SEIR-type model.
 # (3) Advance simulation time.
 
-# Specify the 5 thresholds for a 5-tier policy
-thresholds = (-1, 100, 200, 500, 1000)
 
-# Create an instance of MultiTierPolicy using
-#   austin, tiers (defined above)
-#   thresholds (defined above)
-#   "green" as the community_transmission toggle
-# Prof Morton mentioned that setting community_transmission to "green"
-#   was a government official request to stop certain "drop-offs"
-#   in active tiers.
-mtp = MultiTierPolicy(austin, tiers, thresholds, "green")
-
-# Create an instance of SimReplication with seed 500.
-# rep = SimReplication(austin, vaccines, mtp, 500)
-rep = SimReplication(austin, vaccines, None, None)
 # Note that specifying a seed of -1 creates a simulation replication
 #   with average values for the "random" epidemiological parameter
 #   values and deterministic binomial transitions
 #   (also taking average values).
+rep = SimReplication(cook, vaccines, None, None)
 
 # Advance simulation time until a desired end day.
 # Currently, any non-negative integer between 0 and 963 (the length
 #   of the user-specified "calendar.csv") works.
 # Attributes in the SimReplication instance are updated in-place
 #   to reflect the most current simulation state.
-rep.simulate_time_period(766)
+rep.simulate_time_period(155)
 
 # After simulating, we can query the R-squared.
 # If the simulation has been simulated for fewer days than the
 #   timeframe of the historical time period, the R-squared is
 #   computed for this subset of days.
 print(rep.compute_rsq())
-# 
+
 # After simulating, we expert it to json file
+export_rep_to_json(rep, "output.json", "v0.json", "v1.json", "v2.json", "v3.json")
 
-export_rep_to_json(rep, austin.path_to_data / "output.json", austin.path_to_data / "v0.json", austin.path_to_data / "v1.json", austin.path_to_data /"v2.json", austin.path_to_data / "v3.json")
-
-plot_from_file(austin.path_to_data / "output.json", austin)
-# After simulating, we can query the cost of the specified policy.
-# print(rep.compute_cost())
 
 # If we want to test the same policy on a different sample path,
 #   we can still use the same policy object as long as we clear it.
 # mtp.reset()
 
-# Now we create an instance of SimReplication with seed 1010.
-# rep = SimReplication(austin, vaccines, mtp, 1010)
+plot_from_file("output.json", cook)
 
-# Compare the R-squared and costs of seed 1010 versus seed 500.
-# rep.simulate_time_period(800)
-# print(rep.compute_rsq())
-# print(rep.compute_cost())
 
 # Note that calling rep.compute_rsq() if rep has not yet
 #   been simulated, or it has been cleared, leads to an error.
@@ -183,21 +161,21 @@ plot_from_file(austin.path_to_data / "output.json", austin)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Example B: Parameter fitting
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-change_dates = [dt.date(2020, 2, 15),
+change_dates = [dt.date(2020, 1, 10),
                         dt.date(2020, 3, 24),
                         dt.date(2020, 4, 12),
                         dt.date(2020, 6, 13),
                        ]  
 param1 = 7.3*(1 - 0.10896) + 9.9*0.10896
 param2 = (7.3*(1 - 0.10896) + 9.9*0.10896) * 5
-initial_guess = np.array([0.6, 0.15, 3.5, 0.002, 0.425, 0.57, 0.68, 0.55])
-x_bound = ([0, 0, 0, 0, 0, 0, 0, 0],
-                                     [1, 1, 10, 1, 1, 1, 1, 1])
+initial_guess = np.array([0.02, 0.73, 0.83, 0.75, 0.65, 0.5, 0.65])
+x_bound = ([ 0, 0, 0, 0,0, 0, 0],
+                                     [ 1, 1, 1, 1, 1, 1, 1])
 
 
-# transmission = run_fit(austin, vaccines, change_dates,x_bound, initial_guess, 1.5, param1 , param2, param2, dt.datetime(2020, 4, 20), dt.datetime(2022, 4, 4))
+# transmission = run_fit(cook, vaccines, change_dates,x_bound, initial_guess, 4.8, 17, 150, 150, dt.datetime(2020, 3, 29), dt.datetime(2020, 6, 13))
 
-# save_output(transmission, austin)
+# save_output(transmission, cook)
 ###############################################################################
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
