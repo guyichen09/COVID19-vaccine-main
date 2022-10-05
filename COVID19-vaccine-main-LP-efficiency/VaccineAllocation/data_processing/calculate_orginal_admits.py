@@ -16,7 +16,7 @@ hosp_csv = pd.read_csv("./instances/cook/cook_hosp_region_sum_estimated.csv", pa
 icu_csv = pd.read_csv("./instances/cook/icu.csv", parse_dates=['date'])
 
 
-hosp_csv_first = hosp_csv.query("date < @ dt.datetime(2020, 4, 13) & date >= @ dt.datetime(2020, 2, 5)")
+hosp_csv_first = hosp_csv.query("date < @ dt.datetime(2020, 6, 13)")
 icu_csv_first = icu_csv.query("date < @ dt.datetime(2020, 6, 13)")
 
 hosp = hosp_csv_first["hospitalized"].reset_index(drop=True)
@@ -25,7 +25,7 @@ print(hosp)
 m = gp.Model("admits")
 # m.params.NonConvex = 2
 len_x = len(hosp)
-leading_days = 17
+leading_days = 18
 x = m.addVars(len_x + leading_days, vtype=GRB.CONTINUOUS)
 
 y = m.addVars((len(x) - 1) * 2, vtype=GRB.CONTINUOUS, lb=0)
@@ -37,9 +37,9 @@ counter = 0
 for i in range(len(x) - 1):
     m.addConstr(x[i + 1] - x[i] == y[counter] - y[counter + 1])
     counter += 2
-counter1 = 0
-counter2 = 1
-leading_days_plus = 0
+# counter1 = 0
+# counter2 = 1
+# leading_days_plus = 0
 
 # while counter2 != 38:
 #     # print("counter1", counter1)
@@ -54,7 +54,7 @@ leading_days_plus = 0
 #     counter2 += 1
 #     m.addConstr(linexpr == hosp[counter2-1])
 
-for i in range(len(hosp)):
+for i in range(len_x):
     linexpr = 0
     for j in range(leading_days):
         linexpr += x[i + j]
@@ -73,7 +73,7 @@ admission_data = [x[i].X for i in range(len_x + leading_days)]
 syn_admission_data = pd.DataFrame({"date": times, "hospitalized":admission_data})
 
 cook_ad_data = pd.concat([syn_admission_data, cook_ad_data]).reset_index(drop=True)
-cook_ad_data.to_csv("./instances/cook/cook_hosp_ad_region_sum_17_syn.csv")
+cook_ad_data.to_csv("./instances/cook/cook_hosp_ad_region_sum_18_syn.csv")
 
 
 

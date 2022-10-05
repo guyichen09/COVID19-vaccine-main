@@ -147,7 +147,7 @@ def hosp_region_sum_estimation():
     state_bed_data = pd.read_csv("./instances/cook/IL_hosp.csv", parse_dates=["date"], index_col=0).reset_index(drop=True)
     first_IL_beds = state_bed_data.query("date < @ dt.datetime(2020, 6, 13)")
     first_IL_beds["date"] = first_IL_beds["date"].dt.strftime("%m/%d/%y")
-    first_IL_beds["hospitalized"] = first_IL_beds["hospitalized"] * 0.7
+    first_IL_beds["hospitalized"] = first_IL_beds["hospitalized"] * 1.05 * 0.7
     estimated_beds_cook_df = pd.concat([first_IL_beds, cook_bed_data]).reset_index(drop=True)
     estimated_beds_cook_df.to_csv(os.path.join(filepath,'cook_hosp_region_sum_estimated.csv'))
 
@@ -157,9 +157,9 @@ def add_shifted_scaled_austin_data_to_cook():
     austin_files = ["austin_real_hosp_no_may.csv",
                 "austin_real_icu_no_may.csv",
                 "austin_hosp_ad_no_may.csv",]
-    cook_files = ["cook_hosp_estimated.csv",
-                "cook_icu_estimated.csv",
-                "cook_hosp_ad_17_syn.csv",]
+    cook_files = ["cook_hosp_region_sum_estimated.csv",
+                "cook_icu_region_sum_estimated.csv",
+                "cook_hosp_ad_region_sum_18_syn.csv",]
 
     outfile_names = ["hosp", "icu", "admission",]
 
@@ -194,12 +194,12 @@ def add_shifted_scaled_austin_data_to_cook():
 
         first_cook_date = cook_date[0]
         if "admission" in outfile_name:
-            shifted_first_date_austin = austin_date[0] + dt.timedelta(time_delta -19)
-            shifted_austin_dates = austin_date + np.timedelta64(time_delta-19, 'D')
+            shifted_first_date_austin = austin_date[0] + dt.timedelta(time_delta)
+            shifted_austin_dates = austin_date + np.timedelta64(time_delta, 'D')
             # print(shifted_austin_dates[:-first_time_delta])
             first_time_delta = (shifted_first_date_austin - first_cook_date).days
-            shifted_austin_dates = shifted_austin_dates[:-first_time_delta-19]
-            austin_shifted_scaled_data = austin_hosp_data[:-first_time_delta-19] * scale_factor
+            shifted_austin_dates = shifted_austin_dates[:-first_time_delta]
+            austin_shifted_scaled_data = austin_hosp_data[:-first_time_delta] * scale_factor
         else:
             shifted_first_date_austin = austin_date[0] + dt.timedelta(time_delta)
             shifted_austin_dates = austin_date + np.timedelta64(time_delta, 'D')
@@ -216,11 +216,11 @@ def add_shifted_scaled_austin_data_to_cook():
         df = pd.DataFrame({'date': dates,
                     'hospitalized': hosp_data}).reset_index(drop=True)
         # print(df[20:70])
-        df.to_csv("./instances/cook/" + "smoothed_estimated_no_may_" + outfile_name + ".csv")
+        df.to_csv("./instances/cook/" + "smoothed_region_sum_estimated_no_may_" + outfile_name + ".csv")
 
 # scrape_admission_total_beds_regions()
 # calculate_cook_IL_ratio()
 # scrape_state_hosp_data()
-# add_shifted_scaled_austin_data_to_cook()
+add_shifted_scaled_austin_data_to_cook()
 # hosp_region_sum_estimation()
 # icu_hosp_ratio()
