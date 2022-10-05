@@ -1,4 +1,3 @@
-from cProfile import label
 import datetime
 import numpy as np
 import pandas as pd
@@ -24,40 +23,38 @@ def plot_from_file(simulation_filename, instance):
             ax.scatter(x_axis, instance.real_hosp_icu[0:num_days])
             ax.plot(x_axis, np.sum(np.sum(y_data, axis=1), axis=1))
             fig.autofmt_xdate()
-            plt.savefig(instance.path_to_data / "ICU_history.png")
+            plt.savefig(instance.path_to_data / "ICU_history_a.png")
         elif var == "IH_history":
             real_hosp = [ai - bi for (ai, bi) in zip(instance.real_hosp, instance.real_hosp_icu)]
             ax.scatter(x_axis, real_hosp[0:num_days])
             ax.plot(x_axis,  np.sum(np.sum(y_data, axis=1), axis=1))
             fig.autofmt_xdate()
-            plt.savefig(instance.path_to_data / "IH_history.png")
+            plt.savefig(instance.path_to_data / "IH_history_a.png")
         elif var == "ToIHT_history":
             ax.scatter(x_axis, instance.real_hosp_ad[0:num_days])
             ax.plot(x_axis,  np.sum(np.sum(y_data, axis=1), axis=1))
             fig.autofmt_xdate()
-            plt.savefig(instance.path_to_data / "admission_history.png")
+            plt.savefig(instance.path_to_data / "admission_history_a.png")
         elif var == "D_history":
             ax.scatter(x_axis, np.cumsum(instance.real_death_total[0:num_days]))
             ax.plot(x_axis,  np.sum(np.sum(y_data, axis=1), axis=1))
             fig.autofmt_xdate()
-            plt.savefig(instance.path_to_data / "death_history.png")
+            plt.savefig(instance.path_to_data / "death_history_a.png")
 
         # plt.show()
 
 
 def plot_austin_vs_cook():
-    austin_files = ["austin_real_hosp_updated.csv",
-              "austin_real_icu_updated.csv",
-              "austin_hosp_ad_updated.csv",
-              "austin_real_death_from_hosp_updated.csv",
-              "austin_real_total_death.csv"]
-    cook_files = ["cook_hosp.csv",
-              "cook_hosp_icu.csv",
-              "cook_hosp_ad.csv",
-              "cook_deaths_from_hosp_est.csv",
-              "cook_deaths.csv"]
+    austin_files = [
+        # "austin_real_hosp_no_may.csv",
+            #   "austin_real_icu_no_may.csv",
+              "austin_hosp_ad_no_may.csv",]
+    cook_files = [
+        # "cook_hosp_estimated.csv",
+            #   "cook_icu_estimated.csv",
+              "smoothed_estimated_no_may_admission_7_day_ave.csv",]
 
-    outfile_names = ["hosp", "icu", "admission", "death_from_hosp", "death_total"]
+    outfile_names = ["no_may_" + i for i in ["hosp", "icu", "admission",]]
 
     for (austin_file, cook_file, outfile_name) in zip(austin_files, cook_files, outfile_names):
         df_austin_hosp = pd.read_csv(
@@ -99,8 +96,8 @@ def plot_austin_vs_cook():
             plt.plot(df_cook_hosp["date"][cook_peaks], df_cook_hosp["hospitalized"][cook_peaks], "x", c="black")
         fig.autofmt_xdate()
         plt.legend(loc='best')
-        plt.savefig("./plots/"+ "unshifted_unscaled_" + outfile_name + ".png" )
-        
+        # plt.savefig("./plots/"+ "unshifted_unscaled_estimated_" + outfile_name + ".png" )
+        plt.show()
         # shifted
         plt.clf()
         fig, ax = plt.subplots()
@@ -116,8 +113,8 @@ def plot_austin_vs_cook():
             plt.plot(df_cook_hosp["date"][cook_peaks], df_cook_hosp["hospitalized"][cook_peaks], "x", c="black")
         fig.autofmt_xdate()
         plt.legend(loc='best')
-        plt.savefig("./plots/"+ "shifted_unscaled_" + outfile_name + ".png" )
-
+        # plt.savefig("./plots/"+ "shifted_unscaled_estimated_" + outfile_name + ".png" )
+        plt.show()
         plt.clf()
         fig, ax = plt.subplots()
         # shifted and scaled
@@ -126,6 +123,11 @@ def plot_austin_vs_cook():
             plt.plot(df_austin_hosp["date"][austin_peaks] + np.timedelta64(time_delta, 'D'), np.cumsum(df_austin_hosp["hospitalized"])[austin_peaks] * scale_factor, "x", c="black")
             ax.scatter(df_cook_hosp["date"], np.cumsum(df_cook_hosp["hospitalized"]), label="Cook")
             plt.plot(df_cook_hosp["date"][cook_peaks], np.cumsum(df_cook_hosp["hospitalized"])[cook_peaks], "x", c="black")
+        elif "admission" in outfile_name:
+            ax.scatter(df_austin_hosp["date"] + np.timedelta64(time_delta-19, 'D'), df_austin_hosp["hospitalized"] * scale_factor, label="Austin")
+            plt.plot(df_austin_hosp["date"][austin_peaks] + np.timedelta64(time_delta-19, 'D'), df_austin_hosp["hospitalized"][austin_peaks] * scale_factor, "x", c="black")
+            ax.scatter(df_cook_hosp["date"], df_cook_hosp["hospitalized"], label="Cook")
+            plt.plot(df_cook_hosp["date"][cook_peaks], df_cook_hosp["hospitalized"][cook_peaks], "x", c="black")
         else:
             ax.scatter(df_austin_hosp["date"] + np.timedelta64(time_delta, 'D'), df_austin_hosp["hospitalized"] * scale_factor, label="Austin")
             plt.plot(df_austin_hosp["date"][austin_peaks] + np.timedelta64(time_delta, 'D'), df_austin_hosp["hospitalized"][austin_peaks] * scale_factor, "x", c="black")
@@ -133,9 +135,9 @@ def plot_austin_vs_cook():
             plt.plot(df_cook_hosp["date"][cook_peaks], df_cook_hosp["hospitalized"][cook_peaks], "x", c="black")
         fig.autofmt_xdate()
         plt.legend(loc='best')
-        plt.savefig("./plots/"+ "shifted_scaled_" + outfile_name + ".png" )
+        # plt.savefig("./plots/"+ "shifted_scaled_estimated_" + outfile_name + ".png" )
 
-    
+        # plt.show()
 
 
 # plot_austin_vs_cook()  

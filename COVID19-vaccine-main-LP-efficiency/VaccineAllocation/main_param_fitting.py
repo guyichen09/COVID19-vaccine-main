@@ -71,17 +71,17 @@ cook = City("cook",
               "cook_test_IHT.json",
               "calendar.csv",
               "setup_data_param_fit.json",
-              "transmission_lsq_test.csv",
-              "hosp.csv",
-              "icu.csv",
-              "admission.csv",
+              "transmission_lsq_estimated_data.csv",
+              "smoothed_estimated_no_may_hosp.csv",
+              "smoothed_estimated_no_may_icu.csv",
+              "smoothed_estimated_no_may_admission.csv",
               "cook_deaths_from_hosp_est.csv",
               "cook_deaths.csv",
               "delta_prevalence.csv",
               "omicron_prevalence.csv",
               "variant_prevalence.csv")
 
-tiers = TierInfo("cook", "tiers5_opt_Final.json")
+# tiers = TierInfo("cook", "tiers5_opt_Final.json")
 
 vaccines = Vaccine(cook,
                    "cook",
@@ -91,6 +91,27 @@ vaccines = Vaccine(cook,
 
 ###############################################################################
 
+# austin = City("austin",
+#               "austin_test_IHT.json",
+#               "calendar.csv",
+#               "setup_data_Final.json",
+#               "transmission_lsq_test.csv",
+#               "austin_real_hosp_updated.csv",
+#               "austin_real_icu_updated.csv",
+#               "austin_hosp_ad_updated.csv",
+#               "austin_real_death_from_hosp_updated.csv",
+#               "austin_real_total_death.csv",
+#               "delta_prevalence.csv",
+#               "omicron_prevalence.csv",
+#               "variant_prevalence.csv")
+
+# tiers = TierInfo("austin", "tiers5_opt_Final.json")
+
+# vaccines_austin = Vaccine(austin,
+#                    "austin",
+#                    "vaccines.json",
+#                    "booster_allocation_fixed.csv",
+                #    "vaccine_allocation_fixed.csv")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Example A: Simulating a threshold policy
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -105,11 +126,8 @@ vaccines = Vaccine(cook,
 # (3) Advance simulation time.
 
 
-# Note that specifying a seed of -1 creates a simulation replication
-#   with average values for the "random" epidemiological parameter
-#   values and deterministic binomial transitions
-#   (also taking average values).
 rep = SimReplication(cook, vaccines, None, None)
+# rep = SimReplication(austin, vaccines_austin, None, None)
 
 # Advance simulation time until a desired end day.
 # Currently, any non-negative integer between 0 and 963 (the length
@@ -122,17 +140,18 @@ rep.simulate_time_period(155)
 # If the simulation has been simulated for fewer days than the
 #   timeframe of the historical time period, the R-squared is
 #   computed for this subset of days.
-print(rep.compute_rsq())
+# print(rep.compute_rsq())
 
 # After simulating, we expert it to json file
-export_rep_to_json(rep, "output.json", "v0.json", "v1.json", "v2.json", "v3.json")
+export_rep_to_json(rep, "output_cook_admission.json", "v0_a.json", "v1_a.json", "v2_a.json", "v3_a.json")
 
 
 # If we want to test the same policy on a different sample path,
 #   we can still use the same policy object as long as we clear it.
 # mtp.reset()
 
-plot_from_file("output.json", cook)
+# plot_from_file("output_austin.json", austin)
+plot_from_file("output_cook_admission.json", cook)
 
 
 # Note that calling rep.compute_rsq() if rep has not yet
@@ -162,30 +181,32 @@ plot_from_file("output.json", cook)
 # Example B: Parameter fitting
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 change_dates = [dt.date(2020, 1, 10),
-                        dt.date(2020, 3, 24),
-                        dt.date(2020, 4, 12),
+                        dt.date(2020, 3, 8),
+                        dt.date(2020, 4, 1),
+                        dt.date(2020, 5, 1),
+                        # dt.date(2020, 5, 15),
+                        # dt.date(2020, 6, 1),
                         dt.date(2020, 6, 13),
                        ]  
+
+change_dates_austin = [dt.date(2020, 2, 15),
+                        dt.date(2020, 3, 24),
+                        dt.date(2020, 5, 21),
+                        dt.date(2020, 6, 26),]
+
 param1 = 7.3*(1 - 0.10896) + 9.9*0.10896
 param2 = (7.3*(1 - 0.10896) + 9.9*0.10896) * 5
-initial_guess = np.array([0.02, 0.73, 0.83, 0.75, 0.65, 0.5, 0.65])
-x_bound = ([ 0, 0, 0, 0,0, 0, 0],
-                                     [ 1, 1, 1, 1, 1, 1, 1])
+initial_guess = np.array([0.71, 0.89, 0.84, 0.81, 0, 0, 0, 0])
+x_bound = ([ 0, 0, 0, 0, 0, 0, 0, 0],
+                                     [ 1, 1, 1, 1, 1, 1,1, 1])
 
 
-# transmission = run_fit(cook, vaccines, change_dates,x_bound, initial_guess, 4.8, 17, 150, 150, dt.datetime(2020, 3, 29), dt.datetime(2020, 6, 13))
-
+# transmission = run_fit(cook, vaccines, change_dates, x_bound, initial_guess, 0, 0, 1, 0, 0, dt.datetime(2020, 1, 10), dt.datetime(2020, 6, 13))
 # save_output(transmission, cook)
+
+# # transmission = run_fit(austin, vaccines_austin, change_dates_austin,x_bound, initial_guess, 1.5, param1, param2, param2, dt.datetime(2020, 2, 28), dt.datetime(2020, 6, 26))
+# # save_output(transmission, austin)
 ###############################################################################
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Example B: Stopping and starting a simulation
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Other examples to add -- stay tuned
-# Stopping and starting simulation rep within a Python session
-# Externally exporting and importing a simulation rep across computers and sessions
-# A note on how the instance of EpiSetup is kind of a simulation object
-#   and a data object...
 
 
