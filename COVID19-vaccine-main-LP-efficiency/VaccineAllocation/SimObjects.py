@@ -63,8 +63,6 @@ class MultiTierPolicy:
         criStat_total = ToIHT.sum((1, 2))
         criStat_avg = criStat_total[moving_avg_start:].mean()
 
-        # print(criStat_avg)
-
         # Compute new cases per 100k:
         if len(ToIY) > 0:
             ToIY_avg = ToIY.sum((1, 2))[moving_avg_start:].sum() * 100000 / np.sum(N, axis=(0, 1))

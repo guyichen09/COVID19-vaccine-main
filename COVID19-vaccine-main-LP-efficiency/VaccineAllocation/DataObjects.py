@@ -20,10 +20,6 @@ class SimCalendar:
         A simulation calendar to map time steps to days. This class helps
         to determine whether a time step t is a weekday or a weekend, as well
         as school calendars.
-
-        Attrs:
-        start (datetime): start date of the simulation
-        calendar (list): list of datetime for every time step
     '''
 
     def __init__(self, start_date, sim_length):
@@ -36,7 +32,6 @@ class SimCalendar:
         self.schools_closed = None
         self.fixed_transmission_reduction = None
         self.fixed_cocooning = None
-        self.month_starts = self.get_month_starts()
 
     def load_predefined_lockdown(self, lockdown_blocks):
         '''
@@ -112,31 +107,6 @@ class SimCalendar:
             dt_hd = dt.datetime(hd.year, hd.month, hd.day)
             if dt_hd in self.calendar:
                 self._day_type[self.calendar_ix[dt_hd]] = LONG_HOLIDAY
-
-    def get_month_starts(self):
-        '''
-            Get a list of first days of months
-        '''
-        month_starts = []
-
-        currentTemp = self.get_next_month(self.start)
-        while currentTemp <= self.calendar[-1]:
-            month_starts.append(self.calendar_ix[currentTemp])
-            currentTemp = self.get_next_month(currentTemp)
-
-        return month_starts
-
-    def __len__(self):
-        return len(self.calendar)
-
-    def get_next_month(self, dateG):
-        if dateG.month == 12:
-            startMonth = 1
-            startYear = dateG.year + 1
-        else:
-            startMonth = dateG.month + 1
-            startYear = dateG.year
-        return dt.datetime(startYear, startMonth, 1)
 
 
 class City:
@@ -397,7 +367,8 @@ class Vaccine:
 
         :param total_population: integer, usually N parameter such as instance.N
         :param total_risk_gr: instance.A x instance.L
-        :param vaccine_group_name: string of vaccine_group_name (see Vaccine.define_groups()) ("v_0", "v_1", "v_2", "v_3")
+        :param vaccine_group_name: string of vaccine_group_name (see Vaccine.define_groups())
+            ("v_0", "v_1", "v_2", "v_3")
         :param v_in: tuple with strings of vaccine_types going "in" to that vaccine group
         :param v_out: tuple with strings of vaccine_types going "out" of that vaccine group
         :param date: datetime object
@@ -629,10 +600,18 @@ class EpiSetup:
 
     def setup_base_params(self):
 
-        self.beta = self.beta0
-        self.YFR = self.IFR / self.tau
+        # See Yang et al. (2021) and Arslan et al. (2021)
+
+        # tau: proportion of exposed individuals who become symptomatic
+        # mu: rate from ICU to death (for each age group)
+
+        # IFR: infected fatality ratio (%)
+
+        self.beta = self.beta0  # Unmitigated transmission rate
+        self.YFR = self.IFR / self.tau  # symptomatic fatality ratio (%)
+        # ^ Arslan et al. (2021) says denominator should be (1 - self.tau)????
         self.rIH0 = self.rIH
-        self.YHR0 = self.YHR
+        self.YHR0 = self.YHR    # % of symptomatic infections that go to hospital
         self.YHR_overall0 = self.YHR_overall
 
         # LP Edit
@@ -655,9 +634,11 @@ class EpiSetup:
         self.update_nu_params()
 
         # Formerly updated under update_hosp_duration() function in original code
+        # See Yang et al. (2021) pg. 9 -- add constant parameters (alphas)
+        #   to better estimate durations in ICU and general ward.
         self.gamma_ICU = self.gamma_ICU0 * (1 + self.alpha1)
-        self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3)
         self.gamma_IH = self.gamma_IH0 * (1 - self.alpha2)
+        self.mu_ICU = self.mu_ICU0 * (1 + self.alpha3)
 
     def delta_update_param(self, prev):
         '''
@@ -757,6 +738,8 @@ class EpiSetup:
         self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
 
     def update_YHR_params(self):
+        # Arslan et al. (2021) pg. 7
+        # omega_P: infectiousness of pre-symptomatic relative to symptomatic
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
                                                               (1 - self.YHR_overall[a]) / self.gamma_IY) +
                                   (1 - self.tau) * self.omega_IA / self.gamma_IA) /
@@ -771,6 +754,8 @@ class EpiSetup:
             self.YHR[a] * self.gamma_IY / (self.Eta[a] + (self.gamma_IY - self.Eta[a]) * self.YHR[a])
             for a in range(len(self.YHR))
         ])
+
+        # symptomatic fatality ratio divided by symptomatic hospitalization rate
         self.HFR = self.YFR / self.YHR
 
     def update_nu_params(self):
@@ -833,7 +818,6 @@ class EpiSetup:
             phi_age_risk[-1, :, :, :] = (1 - cocooning) * phi_age_risk_copy[-1, :, :, :]
         assert (phi_age_risk >= 0).all()
         return phi_age_risk
-
 
 class ParamDistribution:
     '''

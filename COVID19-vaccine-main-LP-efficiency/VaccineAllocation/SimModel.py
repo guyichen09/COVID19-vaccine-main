@@ -263,8 +263,8 @@ class SimReplication:
             time_start and self.next_t, the last point at which it 
             left off.
 
-        :param time_end: [int] nonnegative integer -- time t
-            (number of days) to simulate up to.
+        :param time_end: [int] nonnegative integer -- time t (number of days)
+            to simulate up to.
         :return: [None]
         '''
 
@@ -313,6 +313,8 @@ class SimReplication:
 
         epi = copy.deepcopy(self.epi_rand)
 
+        # print(epi.YHR, epi.YHR_overall)
+
         if t < len(self.instance.real_hosp):
             phi_t = epi.effective_phi(self.instance.cal.schools_closed[t],
                                       self.instance.cal.fixed_cocooning[t],
@@ -352,6 +354,13 @@ class SimReplication:
                 epi.update_icu_params(kwargs["rd_rate"])
         else:
             epi.update_icu_all(t, self.instance.otherInfo)
+
+        # print(epi.gamma_ICU0[0][0])
+        # print(epi.rIH)
+
+        # print(epi.YHR)
+
+        breakpoint()
 
         discrete_approx = self.discrete_approx
         step_size = self.step_size
@@ -474,11 +483,10 @@ class SimReplication:
                 v_groups._ToIA[_t] = PAIA
                 v_groups._ToIY[_t] = PYIY
 
-        # print(time.time() - start)
         start = time.time()
 
         for v_groups in self.vaccine_groups:
-            # End of the daily disctretization
+            # End of the daily discretization
             for attribute in self.state_vars:
                 setattr(v_groups, attribute, getattr(v_groups, "_" + attribute)[step_size].copy())
 
@@ -561,8 +569,8 @@ class SimReplication:
 
             imbalance = np.abs(np.sum(S_before - S_after, axis=(0, 1)))
 
-            assert (
-                        imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S {imbalance} at time {calendar[t]}, {t}'
+            assert (imbalance < 1E-2).any(), f'fPop inbalance in vaccine flow in between compartment S ' \
+                                             f'{imbalance} at time {calendar[t]}, {t}'
 
         for v_groups in self.vaccine_groups:
 
@@ -572,8 +580,6 @@ class SimReplication:
 
             for attribute in self.tracking_vars:
                 setattr(v_groups, "_" + attribute, np.zeros((step_size, A, L)))
-
-        # print(time.time() - start)
 
     def reset(self):
 

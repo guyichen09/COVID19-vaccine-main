@@ -299,7 +299,7 @@ print(rep.compute_cost())
 # This resets the random number generator using seed
 #   10000. This is not required for starting and stopping
 #   a simulation, either externally or internally.
-# As discussed in Example A, to get perfectly recreatable
+# As discussed in Example A, to get perfectly repeatable
 #   results, we need to manage random number generation
 #   carefully. We cannot export the current state
 #   of a random number generator using RandomState.
