@@ -40,7 +40,7 @@
 # OptTools contains utility functions for optimization purposes.
 
 import copy
-from SimObjects import MultiTierPolicy
+from SimObjects import MultiTierPolicy, CDCTierPolicy
 from DataObjects import City, TierInfo, Vaccine
 from SimModel import SimReplication
 import InputOutputTools
@@ -69,6 +69,10 @@ austin = City("austin",
               "setup_data_Final.json",
               "transmission.csv",
               "austin_real_hosp_updated.csv",
+              "austin_real_icu_updated.csv",
+              "austin_hosp_ad_updated.csv",
+              "austin_real_death_from_hosp_updated.csv",
+              "austin_real_total_death.csv",
               "delta_prevalence.csv",
               "omicron_prevalence.csv",
               "variant_prevalence.csv")
@@ -259,8 +263,8 @@ rep.simulate_time_period(800)
 # These files will save in the same directory as the
 #   main .py file.
 InputOutputTools.export_rep_to_json(rep, "sim_rep.json",
-                       "v0.json", "v1.json", "v2.json", "v3.json",
-                       "policy.json", "random_params.json")
+                                    "v0.json", "v1.json", "v2.json", "v3.json",
+                                    "policy.json", "random_params.json")
 
 # To read-in previously saved simulation states,
 #   we create a new SimReplication instance and apply
@@ -269,8 +273,8 @@ InputOutputTools.export_rep_to_json(rep, "sim_rep.json",
 # Note the line about rep.rng -- we will explain this later.
 rep = SimReplication(austin, vaccines, mtp, 1000)
 InputOutputTools.import_rep_from_json(rep, "sim_rep.json",
-                       "v0.json", "v1.json", "v2.json", "v3.json",
-                       "policy.json", "random_params.json")
+                                      "v0.json", "v1.json", "v2.json", "v3.json",
+                                      "policy.json", "random_params.json")
 rep.rng = np.random.RandomState(10000)
 
 # Now rep.next_time is 800, where we last left off.
@@ -315,4 +319,31 @@ print(rep.compute_cost())
 
 ###############################################################################
 
-# More examples forthcoming -- stay tuned!
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Example C: Running the simulation with the CDC staged-alert system
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# This is very similar to how we run the usual code, we just need to define the staged-alert policy with the
+# CDC system method. The system has three different indicators; Case counts, Hospital admissions and  Percent hospital
+# beds. Depending on the case count threshold the other two indicators take different values. I define them as
+# "non_surge" and "surge" but we can change those later if we want to do more general systems.
+
+case_threshold = 200
+hosp_adm_thresholds = {"non_surge": (-1, -1, 10, 20, 20), "surge": (-1, -1, -1, 10, 10)}
+staffed_thresholds = {"non_surge": (-1, -1, 0.1, 0.15, 0.15), "surge": (-1, -1, -1, 0.1, 0.1)}
+
+# CDC threshold uses 7-day sum of hospital admission per 100k. The equivalent values if we were to use 7-day avg.
+# hospital admission instead are as follows. We use equivalent thresholds to plot and evaluate the results in our
+# indicator. I used the same CDC thresholds all the time but if we decide to optimize CDC threshold, we can calculate
+# the equivalent values in the model and save to the policy.json.
+equivalent_thresholds = {"non_surge": (-1, -1, 28.57, 57.14, 57.14), "surge": (-1, -1, -1, 28.57, 28.57)}
+ctp = CDCTierPolicy(austin, tiers, case_threshold, hosp_adm_thresholds, staffed_thresholds)
+
+rep = SimReplication(austin, vaccines, ctp, -1)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Example D: Parameter fitting
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ToDo: I am not very happy with the parameter tuning file and I'll update it.
+# But here is an example of parameter fitting:
+
+

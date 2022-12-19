@@ -9,32 +9,27 @@ import OptTools
 import numpy as np
 import time
 
-# OptTools.aggregate_data_policies_on_sample_paths(10, 3, 2)
-
-for lam in np.arange(0, 10000, 100):
-    print(OptTools.WIP(lam))
-
-breakpoint()
-
-##############################################################################
-
-austin = City("austin",
-              "austin_test_IHT.json",
-              "calendar.csv",
-              "setup_data_Final.json",
-              "transmission.csv",
-              "austin_real_hosp_updated.csv",
-              "delta_prevalence.csv",
-              "omicron_prevalence.csv",
-              "variant_prevalence.csv")
+austin = City(
+    "austin",
+    "austin_test_IHT.json",
+    "calendar.csv",
+    "setup_data_Final.json",
+    "transmission.csv",
+    "austin_real_hosp_updated.csv",
+    "delta_prevalence.csv",
+    "omicron_prevalence.csv",
+    "variant_prevalence.csv",
+)
 
 tiers = TierInfo("austin", "tiers5_opt_Final.json")
 
-vaccines = Vaccine(austin,
-                   "austin",
-                   "vaccines.json",
-                   "booster_allocation_fixed.csv",
-                   "vaccine_allocation_fixed.csv")
+vaccines = Vaccine(
+    austin,
+    "austin",
+    "vaccines.json",
+    "booster_allocation_fixed.csv",
+    "vaccine_allocation_fixed.csv",
+)
 
 start = time.time()
 

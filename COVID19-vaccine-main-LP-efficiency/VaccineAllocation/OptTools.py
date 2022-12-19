@@ -28,7 +28,6 @@ from InputOutputTools import import_rep_from_json
 import copy
 import itertools
 
-
 ###############################################################################
 
 # An example of how to use multiprocessing on the cluster to
@@ -38,47 +37,17 @@ import itertools
 #     p = multiprocessing.Process(target=get_sample_paths, args=(i,))
 #     p.start()
 
-def WIP(lam):
-    '''
 
-    :param lam
-
-    :return:
-    '''
-
-    aggregate_thresholds_identifiers = np.genfromtxt("aggregate_thresholds_identifiers.csv",
-                                                     delimiter=",")
-    aggregate_costs_data = np.genfromtxt("aggregate_costs_data.csv", delimiter=",")
-    aggregate_feasibility_data = np.genfromtxt("aggregate_feasibility_data", delimiter=",")
-
-    mean_costs = np.mean(aggregate_costs_data, axis=1)
-    mean_feasibility = np.mean(aggregate_feasibility_data, axis=1)
-
-    aggregate_obj_func_data = mean_costs + lam * (0.05 - (1-mean_feasibility))
-
-    opt_sol = np.argmin(aggregate_obj_func_data)
-    opt_obj_val = aggregate_obj_func_data[opt_sol]
-
-    opt_sol_cost = mean_costs[opt_sol]
-    opt_sol_violation = 1-mean_feasibility[opt_sol]
-
-    return opt_sol, opt_obj_val, opt_sol_cost, opt_sol_violation
-
-def biPASS_lagrangian_on_sample_paths():
-    '''
-    IDK
-    '''
-    pass
-
-
-def get_sample_paths(city,
-                     vaccine_data,
-                     rsq_cutoff,
-                     goal_num_good_reps,
-                     processor_rank=0,
-                     seed_assignment_func=(lambda rank: rank),
-                     timepoints=(25, 100, 200, 400, 783)):
-    '''
+def get_sample_paths(
+    city,
+    vaccine_data,
+    rsq_cutoff,
+    goal_num_good_reps,
+    processor_rank=0,
+    seed_assignment_func=(lambda rank: rank),
+    timepoints=(25, 100, 200, 400, 783),
+):
+    """
     This function uses an accept-reject procedure to
         "realistic" sample paths , using a "time blocks"
         heuristic (see Algorithm 1 in Yang et al. 2021) and using
@@ -123,7 +92,7 @@ def get_sample_paths(city,
         at which to pause the simulation of a sample
         path and check the R-squared value
     :return: [None]
-    '''
+    """
 
     # Create an initial replication, using the random number seed
     #   specified by seed_assignment_func
@@ -164,14 +133,16 @@ def get_sample_paths(city,
             num_good_reps += 1
             all_rsq.append(rsq)
             identifier = str(processor_rank) + "_" + str(num_good_reps)
-            InputOutputTools.export_rep_to_json(rep,
-                                                identifier + "_sim.json",
-                                                identifier + "_v0.json",
-                                                identifier + "_v1.json",
-                                                identifier + "_v2.json",
-                                                identifier + "_v3.json",
-                                                None,
-                                                identifier + "_epi_params.json")
+            export_rep_to_json(
+                rep,
+                identifier + "_sim.json",
+                identifier + "_v0.json",
+                identifier + "_v1.json",
+                identifier + "_v2.json",
+                identifier + "_v3.json",
+                None,
+                identifier + "_epi_params.json",
+            )
 
         # Internally save the state of the random number generator
         #   to hand to the next sample path
@@ -190,16 +161,21 @@ def get_sample_paths(city,
 
         # Every 1000 reps, export the information-gathering variables as a .csv file
         if total_reps % 1000 == 0:
-            np.savetxt(str(processor_rank) + "_num_elim_per_stage.csv",
-                       np.array(num_elim_per_stage), delimiter=",")
-            np.savetxt(str(processor_rank) + "_all_rsq.csv",
-                       np.array(all_rsq), delimiter=",")
+            np.savetxt(
+                str(processor_rank) + "_num_elim_per_stage.csv",
+                np.array(num_elim_per_stage),
+                delimiter=",",
+            )
+            np.savetxt(
+                str(processor_rank) + "_all_rsq.csv", np.array(all_rsq), delimiter=","
+            )
 
 
 ###############################################################################
 
+
 def thresholds_generator(stage2_info, stage3_info, stage4_info, stage5_info):
-    '''
+    """
     Creates a list of 5-tuples, where each 5-tuple has the form
         (-1, t2, t3, t4, t5) with 0 <= t2 <= t3 <= t4 <= t5 < inf.
     The possible values t2, t3, t4, and t5 can take come from
@@ -214,7 +190,7 @@ def thresholds_generator(stage2_info, stage3_info, stage4_info, stage5_info):
     :param stage4_info: same as above but for stage 4
     :param stage5_info: same as above but for stage 5
     :return: [array] of 5-tuples
-    '''
+    """
 
     # Create an array (grid) of potential thresholds for each stage
     stage2_options = np.arange(stage2_info[0], stage2_info[1], stage2_info[2])
@@ -240,100 +216,20 @@ def thresholds_generator(stage2_info, stage3_info, stage4_info, stage5_info):
 
 ###############################################################################
 
-# Note to self -- right now for aggregate_data_policies_on_sample_paths,
-#   aggregate_thresholds_identifiers is k x 5, so hardcoded assuming
-#   that there are 5-tier threshold policies. Need to think about
-#   how to accommodate 3-tier threshold policies (like for the CDC),
-#   possibly simultaneously. This probably just means a "ragged"
-#   array, but need to think about this.
 
-def aggregate_data_policies_on_sample_paths(num_policies, num_reps, processor_count_total):
-    '''
-    Called after evaluate_policies_on_sample_paths
-    
-    :param num_policies [int] -- number of policies tested when
-        evaluate_policies_on_sample_paths called
-    :param num_reps [int] -- see evaluate_policies_on_sample_paths
-    :param processor_count_total [int] -- see evaluate_policies_on_sample_paths
-
-    For each file type (thresholds_identifiers, costs_data, feasibility_data),
-        combines data from processor_count_total number of .json files
-        to create a single .csv.
-    All these .json files must be in the same working directory as
-        the file that calls ths function.
-    Saves 3 files:
-        aggregate_thresholds_identifiers.csv (num_policies x 5, the ith row
-        contains the 5-tier threshold values).
-        aggregate_costs_data.csv (num_policies x num_reps, each element is a float)
-        aggregate_feasibility_data.csv (num_policies x num_reps, each element is a Boolean)
-    The i,jth element of aggregate_costs_data.csv and aggregate_feasibility_data.csv
-        corresponds to the cost and feasibility (respectively) of the jth sample path
-        of the ith policy in aggregate_thresholds_identifiers.csv.
-    We have k = len(thresholds_array), where thresholds_array is the
-        argument passed to the previous run of evaluate_policies_on_sample_paths.
-    '''
-
-    aggregate_thresholds_identifiers = []
-    aggregate_costs_data = []
-    aggregate_feasibility_data = []
-
-    # breakpoint()
-
-    for processor in range(processor_count_total):
-    # for processor in [1, 2]:
-        thresholds = np.genfromtxt("proc" + str(processor) + "_" +
-                                   "thresholds_identifiers.csv", delimiter=",")
-        aggregate_thresholds_identifiers.extend(thresholds.tolist())
-
-        processor_set_costs = []
-        processor_set_feasibility = []
-
-        for rep in np.arange(num_reps):
-        # for rep in [1,2,3]:
-            base_csv_filename = "proc" + str(processor) + "_rep" + str(rep) + "_"
-
-            costs = np.genfromtxt(base_csv_filename + "costs_data.csv", delimiter=",")
-            processor_set_costs.append(costs)
-
-            feasibility = np.genfromtxt(base_csv_filename + "feasibility_data.csv", delimiter=",")
-            processor_set_feasibility.append(feasibility)
-
-            # breakpoint()
-
-        processor_set_costs = np.transpose(np.array(processor_set_costs))
-        processor_set_feasibility = np.transpose(np.array(processor_set_feasibility))
-
-        # breakpoint()
-
-        aggregate_costs_data.append(processor_set_costs)
-        aggregate_feasibility_data.append(processor_set_feasibility)
-
-    # breakpoint()
-
-    aggregate_costs_data = np.reshape(aggregate_costs_data,
-                                      (num_policies, num_reps))
-    aggregate_feasibility_data = np.reshape(aggregate_feasibility_data,
-                                            (num_policies, num_reps))
-
-    breakpoint()
-
-    np.savetxt("aggregate_thresholds_identifiers.csv",
-               aggregate_thresholds_identifiers, delimiter=",")
-    np.savetxt("aggregate_costs_data.csv", aggregate_costs_data, delimiter=",")
-    np.savetxt("aggregate_feasibility_data", aggregate_feasibility_data, delimiter=",")
-
-
-def evaluate_policies_on_sample_paths(city,
-                                      tiers,
-                                      vaccines,
-                                      thresholds_array,
-                                      end_time,
-                                      seeds,
-                                      num_reps,
-                                      base_filename,
-                                      processor_rank,
-                                      processor_count_total):
-    '''
+def evaluate_policies_on_sample_paths(
+    city,
+    tiers,
+    vaccines,
+    thresholds_array,
+    end_time,
+    RNG,
+    num_reps,
+    base_filename,
+    processor_rank,
+    processor_count_total,
+):
+    """
     Creates a MultiTierPolicy object for each threshold in
         thresholds_array, partitions these policies amongst
         processor_count_total processors, simulates these
@@ -373,27 +269,30 @@ def evaluate_policies_on_sample_paths(city,
     :param city: [obj] instance of City
     :param tiers: [obj] instance of TierInfo
     :param vaccines: [obj] instance of Vaccine
-    :param thresholds_array: [list of tuples] arbitrary-length list of 
+    :param thresholds_array: [list of tuples] arbitrary-length list of
         5-tuples, where each 5-tuple has the form (-1, t2, t3, t4, t5)
-         with 0 <= t2 <= t3 <= t4 <= t5 < inf, corresponding to 
+         with 0 <= t2 <= t3 <= t4 <= t5 < inf, corresponding to
          thresholds for each tier.
     :param end_time: [int] nonnegative integer, time at which to stop
         simulating and evaluating each policy -- must be greater (later than)
         the time at which the sample paths stopped
-    :param seeds: [tuple] tuple of length num_reps of distinct integers,
-        where the ith element is the seed at which to start the
-        ith replication's random number generator
+    :param RNG: [obj] instance of np.random.RandomState(),
+        a random number generator
     :param num_reps: [int] number of sample paths to test policies on
     :param base_filename: [str] prefix common to all filenames
     :param processor_rank: [int] nonnegative unique identifier of
         the parallel processor
     :param processor_count_total: [int] total number of processors
     :return: [None]
-    '''
+    """
 
     # Create an array of MultiTierPolicy objects, one for each threshold
-    policies_array = np.array([MultiTierPolicy(city, tiers, thresholds, "green") for
-                               thresholds in thresholds_array])
+    policies_array = np.array(
+        [
+            MultiTierPolicy(city, tiers, thresholds, "green")
+            for thresholds in thresholds_array
+        ]
+    )
 
     # Assign each processor its own set of MultiTierPolicy objects to simulate
     # Some processors have min_num_policies_per_processor
@@ -404,32 +303,35 @@ def evaluate_policies_on_sample_paths(city,
 
     if processor_rank in np.arange(leftover_num_policies):
         start_point = processor_rank * (min_num_policies_per_processor + 1)
-        policies_ix_processor = np.arange(start_point,
-                                          start_point + (min_num_policies_per_processor + 1))
+        policies_ix_processor = np.arange(
+            start_point, start_point + (min_num_policies_per_processor + 1)
+        )
     else:
-        start_point = (min_num_policies_per_processor + 1) * leftover_num_policies + \
-                      (processor_rank - leftover_num_policies) * min_num_policies_per_processor
-        policies_ix_processor = np.arange(start_point,
-                                          start_point + min_num_policies_per_processor)
+        start_point = (min_num_policies_per_processor + 1) * leftover_num_policies + (
+            processor_rank - leftover_num_policies
+        ) * min_num_policies_per_processor
+        policies_ix_processor = np.arange(
+            start_point, start_point + min_num_policies_per_processor
+        )
 
     # Iterate through each replication
     for rep in range(num_reps):
 
         # Load the sample path from .json files for each replication
-        base_json_filename = base_filename + str(rep) + "_"
+        base_json_filename = base_filename + str(rep + 1) + "_"
         base_rep = SimReplication(city, vaccines, None, 1)
-        import_rep_from_json(base_rep, base_json_filename + "sim.json",
-                             base_json_filename + "v0.json",
-                             base_json_filename + "v1.json",
-                             base_json_filename + "v2.json",
-                             base_json_filename + "v3.json",
-                             None,
-                             base_json_filename + "epi_params.json")
-
-        if seeds[rep] >= 0:
-            base_rep.rng = np.random.RandomState(seeds[rep])
-        else:
-            base_rep.rng = None
+        import_rep_from_json(
+            base_rep,
+            base_json_filename + "sim.json",
+            base_json_filename + "v0.json",
+            base_json_filename + "v1.json",
+            base_json_filename + "v2.json",
+            base_json_filename + "v3.json",
+            None,
+            base_json_filename + "epi_params.json",
+        )
+        if rep == 0:
+            base_rep.rng = RNG
 
         thresholds_identifiers = []
         costs_data = []
@@ -449,13 +351,17 @@ def evaluate_policies_on_sample_paths(city,
             base_rep.reset()
 
         # Save results
-        base_csv_filename = "proc" + str(processor_rank) + "_rep" + str(rep) + "_"
-
-        if rep == 0:
-            np.savetxt("proc" + str(processor_rank) + "_" + "thresholds_identifiers.csv",
-                       np.array(thresholds_identifiers), delimiter=",")
-
-        np.savetxt(base_csv_filename + "costs_data.csv",
-                   np.array(costs_data), delimiter=",")
-        np.savetxt(base_csv_filename + "feasibility_data.csv",
-                   np.array(feasibility_data), delimiter=",")
+        base_csv_filename = "proc" + str(processor_rank) + "_rep" + str(rep + 1) + "_"
+        np.savetxt(
+            base_csv_filename + "thresholds_identifiers.csv",
+            np.array(thresholds_identifiers),
+            delimiter=",",
+        )
+        np.savetxt(
+            base_csv_filename + "costs_data.csv", np.array(costs_data), delimiter=","
+        )
+        np.savetxt(
+            base_csv_filename + "feasibility_data.csv",
+            np.array(feasibility_data),
+            delimiter=",",
+        )
