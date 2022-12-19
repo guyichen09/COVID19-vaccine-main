@@ -38,11 +38,22 @@ vaccines = Vaccine(austin,
 
 ###############################################################################s
 
-thresholds_array = thresholds_generator((0,14,1), (0,100,10), (0,100,10), (0,100,20))
-# thresholds_array = [(-1, 1, 10, 100, 200), (-1, 5, 15, 25, 50)]
-rng = np.random.RandomState(100+rank)
+# thresholds_array = thresholds_generator((0, 14, 1), (0, 100, 10), (0, 100, 10), (0, 100, 20))
+
+thresholds_array = thresholds_generator((0, 1000, 100), (0, 1000, 100), (0, 1000, 100), (0, 1000, 100))
+
+new_thresholds_array = []
+
+for threshold in thresholds_array:
+    if threshold[1] == threshold[2] and threshold[3] == threshold[4]:
+        new_thresholds_array.append(threshold)
+
 base_identifier = "0_"
-num_reps = 300
+num_reps = 1
+
+# breakpoint()
 
 evaluate_policies_on_sample_paths(austin, tiers, vaccines, thresholds_array, 945,
-                                  rng, num_reps, base_identifier, rank, size)
+                                  tuple(np.full(len(thresholds_array), -1)), num_reps, base_identifier, rank, size)
+
+breakpoint()

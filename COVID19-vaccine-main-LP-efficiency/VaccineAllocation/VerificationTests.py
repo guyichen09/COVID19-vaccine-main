@@ -9,6 +9,15 @@ import OptTools
 import numpy as np
 import time
 
+# OptTools.aggregate_data_policies_on_sample_paths(10, 3, 2)
+
+for lam in np.arange(0, 10000, 100):
+    print(OptTools.WIP(lam))
+
+breakpoint()
+
+##############################################################################
+
 austin = City("austin",
               "austin_test_IHT.json",
               "calendar.csv",

@@ -14,7 +14,6 @@ WEEKEND = 2
 HOLIDAY = 3
 LONG_HOLIDAY = 4
 
-
 class SimCalendar:
     '''
         A simulation calendar to map time steps to days. This class helps
@@ -617,10 +616,6 @@ class EpiSetup:
         # LP Edit
         # Uncomment this and comment out the other overriding of the 0-variables
         #   under update_nu_params
-        # THE RESULTS ARE DIFFERENT -- THE RESULTS SHOULD NOT DEPEND ON
-        #   WHETHER OR NOT THE VARIABLES ARE AN ARRAY
-        # self.gamma_ICU0 = self.gamma_ICU.reshape(self.gamma_ICU.size, 1)
-        # self.mu_ICU0 = self.mu_ICU.reshape(self.mu_ICU.size, 1)
 
         # if gamma_IH and mu are lists, reshape them for right dimension
         if isinstance(self.gamma_IH, np.ndarray):
@@ -664,6 +659,9 @@ class EpiSetup:
         gamma_IH0 = self.gamma_IH0
 
         # Rate of recovery from ICU -- increases with Delta?
+        # if np.all(self.gamma_ICU0 == self.gamma_ICU):
+        #     print("Delta update: original and current gamma value are the same.")
+
         self.gamma_ICU = gamma_ICU0 * (1 + self.alpha1) * (1 - prev) + \
                          gamma_ICU0 * 0.65 * (1 + self.alpha1_delta) * prev
 
@@ -695,6 +693,9 @@ class EpiSetup:
         gamma_ICU0 = self.gamma_ICU0
         mu_ICU0 = self.mu_ICU0
         gamma_IH0 = self.gamma_IH0
+
+        # if np.all(self.gamma_ICU0 == self.gamma_ICU):
+        #     print("Omicron update: original and current gamma value are the same.")
 
         self.gamma_ICU = gamma_ICU0 * (1 + self.alpha1_omic) * 1.1 * prev + \
                          gamma_ICU0 * 0.65 * (1 + self.alpha1_delta) * (1 - prev)

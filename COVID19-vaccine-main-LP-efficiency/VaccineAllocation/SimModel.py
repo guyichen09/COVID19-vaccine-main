@@ -360,8 +360,6 @@ class SimReplication:
 
         # print(epi.YHR)
 
-        breakpoint()
-
         discrete_approx = self.discrete_approx
         step_size = self.step_size
         get_binomial_transition_quantity = self.get_binomial_transition_quantity
