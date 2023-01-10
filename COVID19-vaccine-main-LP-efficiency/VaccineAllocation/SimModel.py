@@ -57,9 +57,13 @@ class SimReplication:
         self.D_history = [np.zeros((A, L))]
         self.ToIHT_history = []
         self.ToIY_history = []
+        self.ToICU_history = []
         self.ToICUD_history = []
         self.ToIYD_history = []
-
+        self.ToIHD_history = []
+        self.ToIH_history = []
+        self.E_history = []
+        self.PY_history = []
         # The next t that is simulated (automatically gets updated after simulation)
         # This instance has simulated up to but not including time next_t
         self.next_t = 0
@@ -67,7 +71,7 @@ class SimReplication:
         # Tuples of variable names for organization purposes
         self.state_vars = ("S", "E", "IA", "IY", "PA", "PY", "R", "D", "IH", "ICU")
         self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT",
-                              "ToICUD", "ToIYD", "ToIA", "ToIY")
+                              "ToICUD", "ToIYD", "ToIA", "ToIY", "ToIHD", "ToIH")
 
     def init_rng(self):
         '''
@@ -238,6 +242,66 @@ class SimReplication:
             (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
 
         return rsq
+    
+    def compute_gw_rsq(self):
+        '''
+        Return R-squared type statistic based on historical hospital
+            data (see pg. 10 in Yang et al. 2021), comparing
+            thus-far-simulated hospital numbers (starting from t = 0
+            up to the current time of the simulation) to the
+            historical data hospital numbers (over this same time
+            interval).
+
+        Note that this statistic is not exactly R-squared --
+            and as a result it takes values outside of [-1, 1].
+
+        :return: [float] current R-squared value
+        '''
+
+        f_benchmark = [a - b for (a, b) in zip(self.instance.real_hosp,self.instance.real_hosp_icu)]
+
+        IH_sim = np.array(self.IH_history)
+        IH_sim = IH_sim.sum(axis=(2, 1))
+        IH_sim = IH_sim[:self.t_historical_data_end]
+
+        if self.next_t < self.t_historical_data_end:
+            IH_sim = IH_sim[100:self.next_t]
+            f_benchmark = f_benchmark[100:self.next_t]
+
+        rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
+            (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+
+        return rsq
+
+    def compute_icu_rsq(self):
+        '''
+        Return R-squared type statistic based on historical hospital
+            data (see pg. 10 in Yang et al. 2021), comparing
+            thus-far-simulated hospital numbers (starting from t = 0
+            up to the current time of the simulation) to the
+            historical data hospital numbers (over this same time
+            interval).
+
+        Note that this statistic is not exactly R-squared --
+            and as a result it takes values outside of [-1, 1].
+
+        :return: [float] current R-squared value
+        '''
+
+        f_benchmark = self.instance.real_hosp_icu
+
+        IH_sim = np.array(self.ICU_history)
+        IH_sim = IH_sim.sum(axis=(2, 1))
+        IH_sim = IH_sim[:self.t_historical_data_end]
+
+        if self.next_t < self.t_historical_data_end:
+            IH_sim = IH_sim[100:self.next_t]
+            f_benchmark = f_benchmark[100:self.next_t]
+
+        rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
+            (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
+
+        return rsq
 
     def immune_escape(self, immune_escape_rate, t):
         '''
@@ -278,30 +342,33 @@ class SimReplication:
         for t in range(time_start, time_end):
 
             self.next_t += 1
-
+        
             self.simulate_t(t)
 
             A = self.instance.A
             L = self.instance.L
-
+        
             for attribute in self.state_vars + self.tracking_vars:
                 setattr(self, attribute, np.zeros((A, L)))
-
             for attribute in self.state_vars + self.tracking_vars:
                 sum_across_vaccine_groups = 0
                 for v_group in self.vaccine_groups:
                     sum_across_vaccine_groups += getattr(v_group, attribute)
                 setattr(self, attribute, sum_across_vaccine_groups)
-
+            # print(self.ICU)
             self.ICU_history.append(self.ICU)
             self.IH_history.append(self.IH)
             self.D_history.append(self.D)
             
             self.ToIHT_history.append(self.ToIHT)
             self.ToIY_history.append(self.ToIY)
+            self.ToICU_history.append(self.ToICU)
             self.ToICUD_history.append(self.ToICUD)
             self.ToIYD_history.append(self.ToIYD)
-
+            self.ToIHD_history.append(self.ToIHD)
+            self.ToIH_history.append(self.ToIH)
+            self.E_history.append(self.E)
+            self.PY_history.append(self.PY)
             total_imbalance = np.sum(
                 self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU) - np.sum(
                 self.instance.N)
@@ -341,7 +408,6 @@ class SimReplication:
             for v_groups in self.vaccine_groups:
                 v_groups.delta_update(self.instance.delta_prev[days_since_delta_start])
             epi.delta_update_param(self.instance.delta_prev[days_since_delta_start])
-
         # Update epi parameters for omicron:
         if calendar[t] >= self.instance.omicron_start:
             days_since_omicron_start = (calendar[t] - self.instance.omicron_start).days
@@ -385,10 +451,18 @@ class SimReplication:
             np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]),
             step_size)
         rate_IHICU = discrete_approx(epi.nu * epi.mu, step_size)
-        rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH, step_size)
+        # print(epi.nu)
+        # print("mu")
+        # print(epi.mu)
+        # print("----------------------------rIH----------------")
+        # print(epi.rIH)
+
+        # print("----------------------------IYFR----------------")
+        # print(epi.IYFR)
+        rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH * (1 - epi.IHFR), step_size)
+        rate_IHD = discrete_approx((1 - epi.nu) * epi.gamma_IH * epi.IHFR, step_size)
         rate_ICUD = discrete_approx(epi.nu_ICU * epi.mu_ICU, step_size)
         rate_ICUR = discrete_approx((1 - epi.nu_ICU) * epi.gamma_ICU, step_size)
-
         start = time.time()
 
         if t >= 711:  # date corresponding to 02/07/2022
@@ -461,9 +535,12 @@ class SimReplication:
 
                 # Dynamics for IH
                 IHR = get_binomial_transition_quantity(v_groups._IH[_t], rate_IHR)
-                v_groups._IHICU[_t] = get_binomial_transition_quantity(v_groups._IH[_t] - IHR, rate_IHICU)
-                v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - v_groups._IHICU[_t]
-
+                IHD = get_binomial_transition_quantity(v_groups._IH[_t] - IHR, rate_IHD)
+                # print("-----------------debug IHD ---------", rate_IHR, rate_IHD, IHD)
+                
+                v_groups._IHICU[_t] = get_binomial_transition_quantity(v_groups._IH[_t] - IHR - IHD, rate_IHICU)
+                v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - IHD - v_groups._IHICU[_t]
+                v_groups._ToIH[_t] = v_groups._IYIH[_t]
                 # Dynamics for ICU
                 ICUR = get_binomial_transition_quantity(v_groups._ICU[_t], rate_ICUR)
                 ICUD = get_binomial_transition_quantity(v_groups._ICU[_t] - ICUR, rate_ICUD)
@@ -478,11 +555,12 @@ class SimReplication:
                     v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR
 
                 # Dynamics for D
-                v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD
+                v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD + IHD
                 v_groups._ToICUD[_t] = ICUD
                 v_groups._ToIYD[_t] = IYD
                 v_groups._ToIA[_t] = PAIA
                 v_groups._ToIY[_t] = PYIY
+                v_groups._ToIHD[_t] = IHD
 
         # print(time.time() - start)
         start = time.time()
@@ -584,7 +662,7 @@ class SimReplication:
                 setattr(v_groups, "_" + attribute, np.zeros((step_size, A, L)))
 
         # print(time.time() - start)
-
+        self.epi_rand = epi
     def reset(self):
 
         A = self.instance.A
@@ -594,9 +672,15 @@ class SimReplication:
 
         self.ICU_history = [np.zeros((A, L))]
         self.IH_history = [np.zeros((A, L))]
+        self.D_history = [np.zeros((A, L))]
 
         self.ToIHT_history = []
         self.ToIY_history = []
+        self.ToICU_history = []
+        self.ToICUD_history = []
+        self.ToIYD_history = []
+        self.ToIHD_history = []
+        self.ToIH_history = []
 
         self.next_t = 0
 

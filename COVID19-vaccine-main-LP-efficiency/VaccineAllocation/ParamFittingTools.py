@@ -36,6 +36,7 @@ def run_fit(city,
             w_iyih, 
             w_d, 
             w_iyd,
+            c, 
             start_date,
             end_date):
    
@@ -49,6 +50,7 @@ def run_fit(city,
                 'w_iyih': w_iyih,
                 'w_d' : w_d,
                 'w_iyd' : w_iyd,
+                'c' : c, 
                }
     ########## ########## ##########
     #Run least squares and choose a method
@@ -123,30 +125,36 @@ def run_fit(city,
 
     elif city.city == "cook":
         contact_reduction = np.array([
+            0.10,
+                # opt_tr_reduction[0],
                 opt_tr_reduction[0],
                 opt_tr_reduction[1],
                 opt_tr_reduction[2],
-                opt_tr_reduction[3],
+                # opt_tr_reduction[3]
                ])
         
         cocoon = np.array([
             # opt_tr_reduction[3],
-             opt_tr_reduction[4],
-                opt_tr_reduction[5],
-                opt_tr_reduction[6],
-                opt_tr_reduction[7],
+            0.1, 
+            c* opt_tr_reduction[0],
+            c* opt_tr_reduction[1],
+            c* opt_tr_reduction[2],
+            # c* opt_tr_reduction[3],
+                # opt_tr_reduction[7],
                 # opt_tr_reduction[8],
                 # opt_tr_reduction[9],
                 ])
         print('beta_0:', city.epi_rand.beta)   
-        print('SSE:', SSE)   
+        print('SSE:', SSE)
+        print("gamma_IH", 15 + 5 * opt_tr_reduction[3])
+        print("gamma_ICU", 12 + 5 * opt_tr_reduction[3])
         # print('alpha1', opt_tr_reduction[0])
         # print('alpha2', opt_tr_reduction[1])
         # print('alpha3', opt_tr_reduction[2])
         # print('alpha4', opt_tr_reduction[3])
         # print('rIH', opt_tr_reduction[0])
 
-                                                                                
+    df_transmission = None                                                                        
     betas = city.epi_rand.beta*(1 - (contact_reduction))
     end_date = []
     for idx in range(len(change_dates[1:])):
@@ -173,8 +181,9 @@ def run_fit(city,
     return df_transmission
  
 
-def save_output(transmission, instance):  
-    file_path = instance.path_to_data / 'transmission_lsq_estimated_data.csv'
+def save_output(transmission, out_name, instance):  
+    out_file = 'transmission_lsq_' + out_name + '.csv'
+    file_path = instance.path_to_data / out_file
     transmission.to_csv(file_path, index = False)
 
 
@@ -192,15 +201,18 @@ def residual_error(x_variables, **kwargs):
     w_iyih = kwargs['w_iyih']
     w_d = kwargs['w_d']
     w_iyd = kwargs['w_iyd']
+    c = kwargs['c']
     #############Change the transmission reduction and cocconing accordingly
     if city.city == "austin":
         beta = [x_variables[1],
                 x_variables[2],
-                x_variables[3],]
+                x_variables[3],
+                ]
         
         cocoon = [x_variables[4],
                 x_variables[5],
-                x_variables[6],]
+                x_variables[6],
+                ]
         # beta = [ 0.052257,
         #         0.787752,
         #         0.641986,
@@ -237,15 +249,21 @@ def residual_error(x_variables, **kwargs):
         #         x_variables[6],
         #         x_variables[7]]
     elif city.city == "cook":
-        beta = [x_variables[0],
+        # pass
+        beta = [0.10,
+                x_variables[0],
                 x_variables[1],
                 x_variables[2],
-                x_variables[3],]
+                # x_variables[3],
+                ]
         
-        cocoon = [x_variables[4],
-                x_variables[5],
-                x_variables[6],
-                x_variables[7],]
+        cocoon = [0.10,
+                c * x_variables[0],
+                c * x_variables[1],
+                c * x_variables[2],
+                # c * x_variables[3],
+                ]
+    
     tr_reduc = []
     date_list = []
     cocoon_reduc = []
@@ -273,13 +291,25 @@ def residual_error(x_variables, **kwargs):
 
     # Define additional variables included in the fit
     if city.city == "cook":
-        # city.epi.alpha1 = x_variables[0]
-        # city.epi.alpha2 = x_variables[1]
-        # city.epi.alpha3 = x_variables[2]
-        # city.epi.alpha4 = x_variables[3]
-        # city.base_epi.rIH = x_variables[0]
-        pass
-        # city.epi.immune_escape_rate = x_variables[4]
+    #     # city.epi.alpha1 = x_variables[0]
+    #     # city.epi.alpha2 = x_variables[1]
+    #     # city.epi.alpha3 = x_variables[2]
+    #     # city.epi.alpha4 = x_variables[3]
+    #     # city.base_epi.rIH = x_variables[0]
+    #     # city.epi.immune_escape_rate = x_variables[4]
+        city.base_epi._gamma_IH = np.array([['rnd_inverse', 'gamma_IH', 'choice', x_variables[3], list([[(15 + x_variables[3] * 5)]])],
+       ['rnd_inverse', 'gamma_IH', 'choice', x_variables[3], list([[(15 + x_variables[3] * 5)]])],
+       ['rnd_inverse', 'gamma_IH', 'choice', 3.2 / 3 * (15 + x_variables[3] * 5), list([[3.2 / 3 * (15 + x_variables[3] * 5)]])],
+       ['rnd_inverse', 'gamma_IH', 'choice', 3.2 / 3 * (15 + x_variables[3] * 5), list([[3.2 / 3 * (15 + x_variables[3] * 5)]])],
+       ['rnd_inverse', 'gamma_IH', 'choice', 3.5 / 3 * (15 + x_variables[3] * 5), list([[3.5 / 3 * (15 + x_variables[3] * 5)]])]],
+      dtype=object)
+        city.base_epi._gamma_ICU = np.array([['rnd_inverse', 'gamma_ICU', 'choice', x_variables[4], list([[(12 + x_variables[4] * 5)]])],
+       ['rnd_inverse', 'gamma_ICU', 'choice', x_variables[4], list([[(12 + x_variables[4] * 5)]])],
+       ['rnd_inverse', 'gamma_ICU', 'choice', 3.2 / 3 * (12 + x_variables[4] * 5), list([[3.2 / 3 * (12 + x_variables[4] * 5)]])],
+       ['rnd_inverse', 'gamma_ICU', 'choice', 3.2 / 3 * (12 + x_variables[4] * 5), list([[3.2 / 3 * (12 + x_variables[4] * 5)]])],
+       ['rnd_inverse', 'gamma_ICU', 'choice', 3.5 / 3 * (12 + x_variables[4] * 5), list([[3.5 / 3 * (12 + x_variables[4] * 5)]])]],
+      dtype=object)
+        # pass
     elif city.city == "austin":
         # city.base_epi.alpha1_omic = x_variables[0]
         # city.base_epi.alpha2_omic = x_variables[1]
@@ -306,20 +336,38 @@ def residual_error(x_variables, **kwargs):
     print(len(real_hosp))
 
     hosp_benchmark = [rep.IH_history[t].sum() for t in range(t_start, t_end + 1)]
-    residual_error_IH = [a_i - b_i for a_i, b_i in zip(real_hosp, hosp_benchmark)]
+    residual_error_IH = [w_ih* (a_i - b_i) for a_i, b_i in zip(real_hosp, hosp_benchmark)]
     print(len(residual_error_IH))
     icu_benchmark = [rep.ICU_history[t].sum() for t in range(t_start, t_end + 1)]
-    residual_error_ICU = [w_ih * (a_i - b_i) for a_i, b_i in zip(real_hosp_icu, icu_benchmark)]
+    residual_error_ICU = [a_i - b_i for a_i, b_i in zip(real_hosp_icu, icu_benchmark)]
     residual_error_ICU = [element * w_icu for element in residual_error_ICU]
     residual_error_IH.extend(residual_error_ICU)
 
 
-    daily_ad_benchmark = [rep.ToIHT_history[t].sum() for t in range(t_start, t_end)] 
-    print('hospital admission: ', sum(daily_ad_benchmark))
-    residual_error_IYIH = [a_i - b_i for a_i, b_i in zip(real_hosp_ad, daily_ad_benchmark)]
+    # daily_ad_benchmark = [rep.ToIHT_history[t].sum() for t in range(t_start, t_end)] 
+    # print('hospital admission: ', sum(daily_ad_benchmark))
+    # residual_error_IYIH = [a_i - b_i for a_i, b_i in zip(real_hosp_ad, daily_ad_benchmark)]
+    # residual_error_IYIH = [element * w_iyih for element in residual_error_IYIH]
+    # residual_error_IH.extend(residual_error_IYIH)
+
+    a5_daily_ad_benchmark = [rep.ToIHT_history[t][-1, :].sum() for t in range(t_start, t_end)] 
+    print('hospital a5 admission: ', sum(a5_daily_ad_benchmark))
+    residual_error_IYIH = [0.528 * a_i - b_i for a_i, b_i in zip(real_hosp_ad, a5_daily_ad_benchmark)]
     residual_error_IYIH = [element * w_iyih for element in residual_error_IYIH]
     residual_error_IH.extend(residual_error_IYIH)
-    
+
+    a4_daily_ad_benchmark = [rep.ToIHT_history[t][-2, :].sum() for t in range(t_start, t_end)] 
+    print('hospital a4 admission: ', sum(a4_daily_ad_benchmark))
+    residual_error_IYIH = [0.253 * a_i - b_i for a_i, b_i in zip(real_hosp_ad, a4_daily_ad_benchmark)]
+    residual_error_IYIH = [element * w_iyih for element in residual_error_IYIH]
+    residual_error_IH.extend(residual_error_IYIH)
+
+    a1_3_daily_ad_benchmark = [rep.ToIHT_history[t][0:3, : ].sum() for t in range(t_start, t_end)] 
+    print('hospital a1-3 admission: ', sum(a1_3_daily_ad_benchmark))
+    residual_error_IYIH = [0.219 * a_i - b_i for a_i, b_i in zip(real_hosp_ad, a1_3_daily_ad_benchmark)]
+    residual_error_IYIH = [element * w_iyih for element in residual_error_IYIH]
+    residual_error_IH.extend(residual_error_IYIH)
+ 
 
     daily_death_benchmark = [rep.D_history[t+1].sum() - rep.D_history[t].sum() for t in range(t_start, t_end)] 
     daily_death_benchmark.insert(0, 0)

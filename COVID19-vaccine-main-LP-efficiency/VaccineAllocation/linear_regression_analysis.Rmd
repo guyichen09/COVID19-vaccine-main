@@ -1,0 +1,44 @@
+---
+title: "model_output_analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+py_toiht <- read.csv(file = './py_toiht.csv',  fileEncoding = "Latin1", check.names = F)
+colnames(py_toiht) <- c("PY", "ToIHT" )
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(py_toiht$PY, py_toiht$ToIHT)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+model <- lm(ToIHT ~ PY, data = py_toiht)
+summary(model)
+
+#use model to create prediction intervals
+predictions <- predict(model, interval = "predict")
+
+#create dataset that contains original data along with prediction intervals
+all_data <- cbind(py_toiht, predictions)
+
+#load ggplot2 library
+library(ggplot2)
+
+#create plot
+ggplot(all_data, aes(x = PY, y = ToIHT)) + #define x and y axis variables
+  geom_point() + #add scatterplot points
+  stat_smooth(method = lm) + #confidence bands
+  geom_line(aes(y = lwr), col = "coral2", linetype = "dashed") + #lwr pred interval
+  geom_line(aes(y = upr), col = "coral2", linetype = "dashed") #upr pred interval
+
+```

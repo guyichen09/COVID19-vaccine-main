@@ -20,7 +20,7 @@ import numpy as np
 from SimObjects import MultiTierPolicy
 from DataObjects import City, TierInfo, Vaccine
 from SimModel import SimReplication
-from InputOutputTools import import_rep_from_json
+from InputOutputTools import import_rep_from_json, export_rep_to_json
 import copy
 import itertools
 
@@ -102,6 +102,8 @@ def get_sample_paths(city,
     all_rsq = []
 
     while num_good_reps < goal_num_good_reps:
+        if total_reps % 20 == 0:
+            print("simulated ", total_reps, "reps")
         total_reps += 1
         valid = True
 
@@ -111,6 +113,7 @@ def get_sample_paths(city,
         for i in range(len(timepoints)):
             rep.simulate_time_period(timepoints[i])
             rsq = rep.compute_rsq()
+            print("rsq:", rsq)
             if rsq < rsq_cutoff:
                 num_elim_per_stage[i] += 1
                 valid = False
@@ -120,6 +123,7 @@ def get_sample_paths(city,
         # If the sample path's R-squared is above rsq_cutoff
         #   at all timepoints, we accept it
         if valid == True:
+            print("a good rep:", num_good_reps)
             num_good_reps += 1
             all_rsq.append(rsq)
             identifier = str(processor_rank) + "_" + str(num_good_reps)
@@ -247,7 +251,7 @@ def evaluate_policies_on_sample_paths(city,
     for rep in range(num_reps):
         base_json_filename = base_filename + str(rep + 1) + "_"
         base_rep = SimReplication(city, vaccines, None, 1)
-        import_rep_from_json(base_rep, base_json_filename + "sim.json",
+        import_rep_from_json(base_rep, base_json_filename + "_all_var_sim.json",
                              base_json_filename + "v0.json",
                              base_json_filename + "v1.json",
                              base_json_filename + "v2.json",

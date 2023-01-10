@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 from pathlib import Path
+import copy
 from itertools import product
 
 base_path = Path(__file__).parent
@@ -152,7 +153,7 @@ class City:
                  death_total_filename,
                  delta_prevalence_filename,
                  omicron_prevalence_filename,
-                 variant_prevalence_filename):
+                 variant_prevalence_filename, alpha=None, alpha_init = None, alpha_gw=False, hicur=None, rIH=None):
         self.city = city
         self.path_to_data = base_path / "instances" / f"{city}"
 
@@ -169,7 +170,7 @@ class City:
                        death_total_filename,
                        delta_prevalence_filename,
                        omicron_prevalence_filename,
-                       variant_prevalence_filename)
+                       variant_prevalence_filename, alpha, alpha_init,alpha_gw, hicur, rIH)
         self.process_data(transmission_filename)
 
     def load_data(self, setup_filename,
@@ -181,7 +182,7 @@ class City:
                   death_total_filename,
                   delta_prevalence_filename,
                   omicron_prevalence_filename,
-                  variant_prevalence_filename):
+                  variant_prevalence_filename, alpha=None, alpha_init = None, alpha_gw=False, hicur=None, rIH=None):
         '''
             Load setup file of the instance.
         '''
@@ -208,7 +209,7 @@ class City:
                     dt.datetime.strptime(data['school_closure'][blSc][1], datetime_formater)
                 ])
 
-            self.base_epi = EpiSetup(data["epi_params"], self.end_date)
+            self.base_epi = EpiSetup(data["epi_params"], self.end_date, alpha, alpha_init,alpha_gw, hicur, rIH)
 
         cal_df = pd.read_csv(str(self.path_to_data / calendar_filename),
                              parse_dates=['Date'], date_parser=pd.to_datetime)
@@ -592,9 +593,9 @@ class EpiSetup:
         Scenarios 6 corresponds to best guess parameters for UT group.
     '''
 
-    def __init__(self, params, end_date):
+    def __init__(self, params, end_date, alpha=None, alpha_init = None, alpha_gw=False, hicur=None, rIH=None):
 
-        self.load_file(params)
+        self.load_file(params, alpha, alpha_init,alpha_gw, hicur, rIH)
 
         try:
             self.qInt['testStart'] = dt.datetime.strptime(self.qInt['testStart'], datetime_formater)
@@ -605,8 +606,9 @@ class EpiSetup:
 
         # Parameters that are randomly sampled for each replication
         self.random_params_dict = {}
+        
 
-    def load_file(self, params):
+    def load_file(self, params, alpha=None, alpha_init = None, alpha_gw=False, hicur=None, rIH=None):
         for (k, v) in params.items():
             if isinstance(v, list):
                 if v[0] == "rnd_inverse" or v[0] == "rnd":
@@ -615,15 +617,59 @@ class EpiSetup:
                     setattr(self, k, np.array(v))
             else:
                 setattr(self, k, v)
+        if alpha_init != None:
+            if alpha_gw is False:
+                for ar in self._gamma_IH:
+                    ar[3] = ar[3] / alpha_init
+                    ar[4] = ar[4][0][0] / alpha_init
+            else:
+                true_gamma = copy.deepcopy(self._gamma_IH)
+                for ar in true_gamma:
+                    ar[3] = ar[3] / alpha_init
+                    ar[4] = ar[4][0][0] / alpha_init
+        if alpha != None:
+            # print("test")
+            # print(self._gamma_IH)
+            for ar in self._gamma_IH:
+                ar[3] = ar[3] / alpha
+                ar[4] = ar[4][0][0] / alpha
+        if hicur != None:
+            self.HICUR = hicur
+            # print(self._gamma_IH)
 
+        # calculate corresponding eta
+        # print(self._mu)
+        if alpha_init!= None and alpha != None and hicur != None:
+            for idx, ar in enumerate(self._mu):
+                # print(ar)
+                # print(idx)
+                # print(self._gamma_IH[idx][3])
+                right_hand = - (1 /  true_gamma[idx][3]) * (1 / self._gamma_IH[idx][3]) * hicur
+                left_hand = (1/true_gamma[idx][3]) - (1 / true_gamma[idx][3]) * hicur - (1 / self._gamma_IH[idx][3])
+                val = 1 / (right_hand / left_hand)
+                print("dafawefwefsdaf", val)
+                ar[3] = val
+                ar[4] = np.array([[val]])
+        
+        if rIH != None:
+            self.rIH = rIH
+        
+        # for a in self.ICUFR:
+        #     a = a * 2
+        self.ICUFR = self.ICUFR
+        self.IHFR = self.ICUFR
+        print("IHFR", self.IHFR)
+
+        # print(self._mu)
+        # print("========================================debug================================")
+        # print(self.__dict__)
     def sample_random_params(self, rng):
         '''
             Generates random parametes from a given random stream.
             Coupled parameters are updated as well.
             Args:
                 rng (RandomState): a RandomState instance from numpy.
-        '''
-
+        ''' 
         # rng = None  #rng
         tempRecord = {}
         for k in vars(self):
@@ -677,7 +723,7 @@ class EpiSetup:
         if isinstance(self.mu, np.ndarray):
             self.mu = self.mu.reshape(self.mu.size, 1)
             self.mu0 = self.mu.copy()
-
+        # print("debug", self.mu)
         self.update_YHR_params()
         self.update_nu_params()
 
@@ -763,7 +809,10 @@ class EpiSetup:
         # update the ICU admission parameter HICUR and update nu
         self.HICUR = self.HICUR * rdrate
         self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
+        # print("update icu param", rdrate, self.rIH)
         self.rIH = 1 - (1 - self.rIH) * rdrate
+        # self.rIH = self.rIH * rdrate
+        # print(self.rIH)
 
     def update_icu_all(self, t, otherInfo):
         if 'rIH' in otherInfo.keys():
@@ -782,7 +831,8 @@ class EpiSetup:
             else:
                 self.mu = self.mu0.copy()
         self.nu = self.gamma_IH * self.HICUR / (self.mu + (self.gamma_IH - self.mu) * self.HICUR)
-
+        # print("update_ICU_all")
+        # print(self.rIH)
     def update_YHR_params(self):
         self.omega_P = np.array([(self.tau * self.omega_IY * (self.YHR_overall[a] / self.Eta[a] +
                                                               (1 - self.YHR_overall[a]) / self.gamma_IY) +
@@ -813,7 +863,10 @@ class EpiSetup:
             self.nu_ICU = self.gamma_ICU * self.ICUFR / (self.mu_ICU + (self.gamma_ICU - self.mu_ICU) * self.ICUFR)
         except:
             self.nu = self.gamma_IH * self.HFR / (self.mu + (self.gamma_IH - self.mu) * self.HFR)
-
+        # print("========================================debug  111================================")
+        # print(self.gamma_IH, self.HICUR, self.mu)
+        # print ((1 - self.nu) * self.gamma_IH + self.nu * self.mu)
+        
     def effective_phi(self, school, cocooning, social_distance, demographics, day_type):
         '''
             school (int): yes (1) / no (0) schools are closed

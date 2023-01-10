@@ -47,7 +47,7 @@ import copy
 #   for saving a simulation replication or loading a simulation replication
 #   from a timepoint t > 0 (rather than starting over from scratch)
 SimReplication_IO_var_names = ("rng_seed",
-                               "ICU_history", "IH_history", "ToIHT_history", "ToIY_history","D_history", "ToICUD_history", "ToIYD_history",
+                               "ICU_history", "IH_history", "ToIHT_history", "ToIY_history","ToICU_history", "D_history", "ToICUD_history", "ToIYD_history","ToIHD_history","ToIH_history","E_history", "PY_history",
                                "next_t",
                                "S", "E", "IA", "IY", "PA", "PY", "R", "D",
                                "IH", "ICU", "IYIH", "IYICU", "IHICU",
@@ -56,12 +56,12 @@ SimReplication_IO_var_names = ("rng_seed",
 # List of names of SimReplication attributes that are lists of arrays
 SimReplication_IO_list_of_arrays_var_names = ("ICU_history", "IH_history",
                                               "ToIHT_history", "ToIY_history",
-                                              "D_history", "ToICUD_history", "ToIYD_history")
+                                              "D_history", "ToICUD_history", "ToIYD_history", "ToICU_history", "ToIHD_history","ToIH_history", "E_history", "PY_history")
 
 # List of names of SimReplication attributes that are arrays
 SimReplication_IO_arrays_var_names = ("S", "E", "IA", "IY", "PA", "PY", "R", "D",
                                       "IH", "ICU", "IYIH", "IYICU", "IHICU",
-                                      "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY")
+                                      "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY", "ToIH")
 
 # List of names of VaccineGroup attributes to be serialized as a .json file
 VaccineGroup_IO_var_names = ("v_beta_reduct", "v_tau_reduct", "v_beta_reduct_delta",

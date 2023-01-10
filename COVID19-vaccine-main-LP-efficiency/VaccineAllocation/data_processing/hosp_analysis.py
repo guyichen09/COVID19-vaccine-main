@@ -5,15 +5,24 @@ import matplotlib.dates as mdates
 import datetime as dt
 
 
+
+austin_total_beds = pd.read_csv("./instances/austin/austin_real_hosp_no_may.csv", parse_dates=['date'], index_col=0)
+austin_icu_beds = pd.read_csv("./instances/austin/austin_real_icu_no_may.csv", parse_dates=['date'], index_col=0)
+austin_admission = pd.read_csv("./instances/austin/austin_hosp_ad_no_may.csv", parse_dates=['date'], index_col=0)
+
 hosp_ad_csv = pd.read_csv("./instances/cook/IL_hosp_ad_region_sum.csv", parse_dates=['date'], index_col=0)
 hosp_ad = hosp_ad_csv["hospitalized"]
 
-cook_total_beds_region_sum = pd.read_csv("./instances/cook/cook_total_beds_region_sum.csv", parse_dates=['date'], index_col=0)
+cook_total_beds_region_sum = pd.read_csv("./instances/cook/smoothed_region_sum_estimated_no_may_hosp.csv", parse_dates=['date'], index_col=0)
 cook_beds = cook_total_beds_region_sum["hospitalized"]
-print(cook_beds)
-cook_ad_csv = pd.read_csv("./instances/cook/cook_hosp_ad_region_sum.csv", parse_dates=["date"],index_col=0)
 
+cook_icu_beds_region_sum = pd.read_csv("./instances/cook/smoothed_region_sum_estimated_no_may_icu.csv", parse_dates=['date'], index_col=0)
+cook_icu = cook_icu_beds_region_sum["hospitalized"]
+cook_icu_beds_region_sum_copy = cook_icu_beds_region_sum.query("date >= @dt.datetime(2020, 1, 13)")
+print(cook_icu_beds_region_sum_copy)
+cook_ad_csv = pd.read_csv("./instances/cook/cook_hosp_ad_region_sum.csv", parse_dates=["date"],index_col=0)
 cook_ad = cook_ad_csv["hospitalized"]
+
 
 il_hosp_csv = pd.read_csv("./instances/cook/IL_hosp.csv", parse_dates=["date"],index_col=0)
 il_icu_csv = pd.read_csv("./instances/cook/IL_hosp_icu.csv", parse_dates=["date"],index_col=0)
@@ -22,12 +31,18 @@ cook_hosp_csv_copy = cook_hosp_csv.query("date <= @dt.datetime(2022, 4, 7) and d
 hosp_csv_copy = il_hosp_csv.query("date <= @dt.datetime(2022, 4, 7) and date >= @dt.datetime(2020, 6, 13)")
 # icu_csv_copy = il_icu_csv.query("date <= @dt.datetime(2022, 4, 7) and date >= @dt.datetime(2020, 6, 13)")
 
+
 # hosp_csv_first = il_hosp_csv.query("date < @ dt.datetime(2020, 6, 13)")
 # icu_csv_first = il_icu_csv.query("date < @ dt.datetime(2020, 6, 13)")
 
 # ad_ratio = cook_ad / hosp_ad
 
-
+austin_IH_ICU_ratio = (austin_total_beds["hospitalized"] - austin_icu_beds["hospitalized"]) / austin_icu_beds["hospitalized"]
+plt.plot(austin_icu_beds["date"][50:], austin_IH_ICU_ratio[50:])
+plt.show()
+cook_IH_ICU_ratio = (cook_total_beds_region_sum["hospitalized"] - cook_icu_beds_region_sum["hospitalized"][5:]) / cook_icu_beds_region_sum["hospitalized"][5:]
+plt.plot(cook_total_beds_region_sum["date"], cook_IH_ICU_ratio)
+plt.show()
 
 il_hosp = hosp_csv_copy["hospitalized"]
 # il_icu = icu_csv_copy["hospitalized"]
@@ -53,10 +68,10 @@ icu_csv = pd.read_csv("./instances/cook/updated_cook_icu.csv", parse_dates=['dat
 
 # hosp_csv_copy = hosp_csv.query("date <= @dt.datetime(2022, 4, 7) and date >= @dt.datetime(2020, 6, 13)")
 # icu_csv_copy = icu_csv.query("date <= @dt.datetime(2022, 4, 7) and date >= @dt.datetime(2020, 6, 13)")
-for i in range(7, 20):
-    # print(il_hosp)
-    cook_ad_csv["SMA" + str(i)] = cook_ad.rolling(i).sum()
-    cook_ad_csv["SMA_ratio" + str(i)] = np.array(cook_ad_csv["SMA"+str(i)]) / np.array(cook_hosp_csv_copy["hospitalized"])
+# for i in range(7, 20):
+#     # print(il_hosp)
+#     cook_ad_csv["SMA" + str(i)] = cook_ad.rolling(i).sum()
+#     cook_ad_csv["SMA_ratio" + str(i)] = np.array(cook_ad_csv["SMA"+str(i)]) / np.array(cook_hosp_csv_copy["hospitalized"])
 #     plt.plot(cook_ad_csv["SMA_ratio" + str(i)])
 # plt.show()
 
@@ -64,7 +79,7 @@ for i in range(7, 20):
 
 # plt.plot(cook_ad_csv["SMA_ratio" + str(i)])
 
-cook_ad_csv.to_csv("hosp_ad_MAsum_cook.csv")
+# cook_ad_csv.to_csv("hosp_ad_MAsum_cook.csv")
 # hosp_ad_csv["SMA12_0.2"] = cook_ad_csv["SMA12"] * 0.2
 
 # fig, ax = plt.subplots()
@@ -87,20 +102,20 @@ fig, ax = plt.subplots()
 plt.xlabel("date")
 plt.ylabel("n-day hospital admission total / hospital census")
 
-x = cook_ad_csv['date']
-for i in range(7, 20):
-    # y = np.array(cook_ad_csv["SMA"+str(i)]) / np.array(cook_hosp_csv_copy["hospitalized"])
+# x = cook_ad_csv['date']
+# for i in range(7, 20):
+#     # y = np.array(cook_ad_csv["SMA"+str(i)]) / np.array(cook_hosp_csv_copy["hospitalized"])
 
-    y = np.array(cook_ad_csv["SMA"+str(i)]) / np.array(cook_beds)
-    # y = hosp_ad_csv["SMA_ratio" + str(i)]
-    plt.plot(x[:60], y[:60],label = '%s-day total'%i)
+#     y = np.array(cook_ad_csv["SMA"+str(i)]) / np.array(cook_beds)
+#     # y = hosp_ad_csv["SMA_ratio" + str(i)]
+#     plt.plot(x[:60], y[:60],label = '%s-day total'%i)
 
-plt.axhline(y=1)
-plt.legend()
-myFmt = mdates.DateFormatter('%y-%m')
-ax.xaxis.set_major_formatter(myFmt)
-plt.show()
-plt.savefig("./cook_admission_census_ratio.png")
+# plt.axhline(y=1)
+# plt.legend()
+# myFmt = mdates.DateFormatter('%y-%m')
+# ax.xaxis.set_major_formatter(myFmt)
+# plt.show()
+# plt.savefig("./cook_admission_census_ratio.png")
 # plt.close()
 
 
