@@ -1,6 +1,6 @@
 ###############################################################################
 
-# SimModel.py
+# SimModelWasteWater.py
 # This module contains the SimReplication class. Each instance holds
 #   a City instance, an EpiSetup instance, a Vaccine instance,
 #   VaccineGroup instance(s), and optionally a MultiTierPolicy instance.
@@ -9,6 +9,7 @@
 
 import numpy as np
 from SimObjects import VaccineGroup
+from SimModel import SimReplication
 import copy
 import datetime as dt
 datetime_formater = '%Y-%m-%d %H:%M:%S'
@@ -16,7 +17,7 @@ import time
 
 ###############################################################################
 
-class SimReplication:
+class SimReplicationWasteWater(SimReplication):
 
     def __init__(self, instance, vaccine, policy, rng_seed):
         '''
@@ -28,28 +29,7 @@ class SimReplication:
             non-negative integer, -1, or None
         '''
 
-        # Save arguments as attributes
-        self.instance = instance
-        self.vaccine = vaccine
-        self.policy = policy
-        self.rng_seed = rng_seed
-
-        self.step_size = self.instance.config["step_size"]
-        self.t_historical_data_end = len(self.instance.real_hosp)
-
-        # A is the number of age groups
-        # L is the number of risk groups
-        # Many data arrays in the simulation have dimenison A x L
-        A = self.instance.A
-        L = self.instance.L
-
-        # Important steps critical to initializing a replication
-        # Initialize random number generator
-        # Sample random parameters
-        # Create new VaccineGroup instances
-        self.init_rng()
-        self.init_epi()
-        self.init_vaccine_groups()
+        SimReplication.__init__(instance, vaccine, policy, rng_seed)
 
         # Initialize data structures to track ICU, IH, ToIHT, ToIY
         self.ICU_history = [np.zeros((A, L))]
