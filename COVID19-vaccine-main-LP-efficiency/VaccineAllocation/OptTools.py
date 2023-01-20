@@ -24,9 +24,10 @@ import numpy as np
 from SimObjects import MultiTierPolicy
 from DataObjects import City, TierInfo, Vaccine
 from SimModel import SimReplication
-from InputOutputTools import import_rep_from_json
+from InputOutputTools import import_rep_from_json, export_rep_to_json
 import copy
 import itertools
+
 
 ###############################################################################
 
@@ -39,13 +40,13 @@ import itertools
 
 
 def get_sample_paths(
-    city,
-    vaccine_data,
-    rsq_cutoff,
-    goal_num_good_reps,
-    processor_rank=0,
-    seed_assignment_func=(lambda rank: rank),
-    timepoints=(25, 100, 200, 400, 783),
+        city,
+        vaccine_data,
+        rsq_cutoff,
+        goal_num_good_reps,
+        processor_rank=0,
+        timepoints=(25, 100, 200, 400, 783),
+        seed_assignment_func=(lambda rank: rank),
 ):
     """
     This function uses an accept-reject procedure to
@@ -118,6 +119,7 @@ def get_sample_paths(
         # Use time block heuristic, simulating in increments
         #   and checking R-squared to eliminate bad
         #   sample paths early on
+        rep_list = []
         for i in range(len(timepoints)):
             rep.simulate_time_period(timepoints[i])
             rsq = rep.compute_rsq()
@@ -126,23 +128,33 @@ def get_sample_paths(
                 valid = False
                 all_rsq.append(rsq)
                 break
+            else:
+                # Cache the state of the simulation rep at the time block.
+                temp_rep = copy.deepcopy(rep)
+                rep_list.append(temp_rep)
 
         # If the sample path's R-squared is above rsq_cutoff
         #   at all timepoints, we accept it
-        if valid == True:
+
+        if valid:
             num_good_reps += 1
             all_rsq.append(rsq)
             identifier = str(processor_rank) + "_" + str(num_good_reps)
-            export_rep_to_json(
-                rep,
-                identifier + "_sim.json",
-                identifier + "_v0.json",
-                identifier + "_v1.json",
-                identifier + "_v2.json",
-                identifier + "_v3.json",
-                None,
-                identifier + "_epi_params.json",
-            )
+            # save the state of the rep for each time block as seperate files.
+            # Each file will be used for retrospective analysis of different peaks.
+            # Each peak will have different end dates of historical data.
+            for i in range(len(timepoints)):
+                t = str(city.cal.calendar[timepoints[i]].date())
+                export_rep_to_json(
+                    rep_list[i],
+                    city.path_to_input_output / (identifier + "_" + t + "_sim.json"),
+                    city.path_to_input_output / (identifier + "_" + t + "_v0.json"),
+                    city.path_to_input_output / (identifier + "_" + t + "_v1.json"),
+                    city.path_to_input_output / (identifier + "_" + t + "_v2.json"),
+                    city.path_to_input_output / (identifier + "_" + t + "_v3.json"),
+                    None,
+                    city.path_to_input_output / (identifier + "_epi_params.json"),
+                )
 
         # Internally save the state of the random number generator
         #   to hand to the next sample path
@@ -218,16 +230,16 @@ def thresholds_generator(stage2_info, stage3_info, stage4_info, stage5_info):
 
 
 def evaluate_policies_on_sample_paths(
-    city,
-    tiers,
-    vaccines,
-    thresholds_array,
-    end_time,
-    RNG,
-    num_reps,
-    base_filename,
-    processor_rank,
-    processor_count_total,
+        city,
+        tiers,
+        vaccines,
+        thresholds_array,
+        end_time,
+        RNG,
+        num_reps,
+        base_filename,
+        processor_rank,
+        processor_count_total,
 ):
     """
     Creates a MultiTierPolicy object for each threshold in
@@ -276,7 +288,7 @@ def evaluate_policies_on_sample_paths(
     :param end_time: [int] nonnegative integer, time at which to stop
         simulating and evaluating each policy -- must be greater (later than)
         the time at which the sample paths stopped
-    :param RNG: [obj] instance of np.random.RandomState(),
+    :param RNG: [obj] instance of np.random.default_rng(),
         a random number generator
     :param num_reps: [int] number of sample paths to test policies on
     :param base_filename: [str] prefix common to all filenames
@@ -308,7 +320,7 @@ def evaluate_policies_on_sample_paths(
         )
     else:
         start_point = (min_num_policies_per_processor + 1) * leftover_num_policies + (
-            processor_rank - leftover_num_policies
+                processor_rank - leftover_num_policies
         ) * min_num_policies_per_processor
         policies_ix_processor = np.arange(
             start_point, start_point + min_num_policies_per_processor
@@ -365,3 +377,58 @@ def evaluate_policies_on_sample_paths(
             np.array(feasibility_data),
             delimiter=",",
         )
+
+
+def evaluate_single_policy_on_sample_path(city: object,
+                                          vaccines: object,
+                                          policy: object,
+                                          end_time: int,
+                                          seed: int,
+                                          num_reps: int,
+                                          base_filename: str):
+    """
+    Creates a MultiTierPolicy object for a single tier policy. Simulates this
+    policy starting from pre-saved sample paths up to end_time. This function is used
+    do projections or retrospective analysis with a single given staged-alert policy
+    and creating data for plotting. This is not used for optimization.
+    """
+
+    # Iterate through each replication
+    for rep in range(num_reps):
+        # Load the sample path from .json files for each replication
+        base_json_filename = base_filename + str(rep + 1) + "_"
+        base_rep = SimReplication(city, vaccines, None, 1)
+        import_rep_from_json(base_rep, base_json_filename + "sim.json",
+                             base_json_filename + "v0.json",
+                             base_json_filename + "v1.json",
+                             base_json_filename + "v2.json",
+                             base_json_filename + "v3.json",
+                             None,
+                             base_json_filename + "epi_params.json")
+        if rep == 0:
+            base_rep.rng = np.random.default_rng(seed)
+        else:
+            base_rep.rng = next_rng
+
+        base_rep.policy = policy
+
+        base_rep.simulate_time_period(end_time)
+        # Internally save the state of the random number generator
+        #   to hand to the next sample path
+        next_rng = base_rep.rng
+        # Save results
+        export_rep_to_json(
+            base_rep,
+            base_json_filename + "sim_updated.json",
+            base_json_filename + "v0_scratch.json",
+            base_json_filename + "v1_scratch.json",
+            base_json_filename + "v2_scratch.json",
+            base_json_filename + "v3_scratch.json",
+            base_json_filename + "policy.json"
+        )
+
+        # Clear the policy and simulation replication history
+        base_rep.policy.reset()
+        base_rep.reset()
+
+

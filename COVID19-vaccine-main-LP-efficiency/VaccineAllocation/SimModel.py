@@ -99,7 +99,7 @@ class SimReplication:
 
         if self.rng_seed:
             if self.rng_seed >= 0:
-                self.rng = np.random.RandomState(self.rng_seed)
+                self.rng = np.random.default_rng(self.rng_seed)
             else:
                 self.rng = None
         else:
@@ -257,7 +257,7 @@ class SimReplication:
         :return: [float] current R-squared value
         """
 
-        f_benchmark = self.instance.real_hosp
+        f_benchmark = self.instance.real_IH_history
 
         IH_sim = np.array(self.ICU_history) + np.array(self.IH_history)
         IH_sim = IH_sim.sum(axis=(2, 1))
@@ -308,7 +308,6 @@ class SimReplication:
         """
 
         time_start = self.next_t
-
         for t in range(time_start, time_end):
 
             self.next_t += 1
@@ -358,7 +357,6 @@ class SimReplication:
         t = t_date
 
         epi = copy.deepcopy(self.epi_rand)
-
         if self.instance.cal.fixed_transmission_reduction[t] is not None:
             # We can fix the transmission reduction as part of projections.
             # It is better to keep real historical data separate from the tiers.

@@ -13,23 +13,60 @@ import pandas as pd
 
 ###############################################################################
 
-austin = City("austin",
-              "austin_test_IHT.json",
-              "calendar.csv",
-              "setup_data_Final.json",
-              "transmission.csv",
-              "austin_real_hosp_updated.csv",
-              "delta_prevalence.csv",
-              "omicron_prevalence.csv",
-              "variant_prevalence.csv")
+austin = City(city="austin",
+              config_filename="austin_test_IHT.json",
+              calendar_filename="calendar.csv",
+              setup_filename="setup_data_Final.json",
+              transmission_filename="transmission.csv",
+              hospitalization_filename="austin_real_hosp_updated.csv",
+              hosp_icu_filename="austin_real_icu_updated.csv",
+              hosp_admission_filename="austin_hosp_ad_updated.csv",
+              death_from_hosp_filename="austin_real_death_from_hosp_updated.csv",
+              death_from_home_filename="austin_real_cum_total_death.csv",
+              delta_prevalence_filename="delta_prevalence.csv",
+              omicron_prevalence_filename="omicron_prevalence.csv",
+              variant_prevalence_filename="variant_prevalence.csv")
 
-tiers = TierInfo("austin", "tiers5_opt_Final.json")
+tiers = TierInfo("austin", "tiers_test.json")
 
 vaccines = Vaccine(austin,
                    "austin",
                    "vaccines.json",
                    "booster_allocation_fixed.csv",
                    "vaccine_allocation_fixed.csv")
+
+###############################################################################
+
+# scratch for feasible solution generation
+#0.44
+
+kappa = 1
+cutoff = -1
+
+threshold = (-1, cutoff, cutoff, cutoff, cutoff)
+mtp = MultiTierPolicy(austin, tiers, threshold, None)
+rep = SimReplication(austin, vaccines, mtp, -1)
+
+kappa_history = []
+
+rep.simulate_time_period(783)
+for t in range(1, 945-783+1):
+    if np.array(rep.ICU_history).sum(axis=(1,2))[-1] > np.array(rep.ICU_history).sum(axis=(1,2))[-2]:
+        kappa = 1
+    else:
+        kappa = 0
+    rep.policy.tiers[4]["school_closure"] = 0
+    rep.policy.tiers[4]["cocooning"] = kappa
+    rep.policy.tiers[4]["transmission_reduction"] = kappa
+    # print(kappa)
+    kappa_history.append(kappa)
+    rep.simulate_time_period(783 + t)
+
+print(np.average(kappa_history))
+print(rep.compute_feasibility())
+print(np.array(rep.ICU_history).sum(axis=(1, 2))[rep.t_historical_data_end:])
+
+breakpoint()
 
 ###############################################################################
 

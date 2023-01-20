@@ -28,7 +28,7 @@ y_lim = {'ToIHT_history': 150,
          'ToSS_unvax': 4000,
          'ToRS_unvax': 3000,
          'R_history': 500000,
-         'ToIY_history': 1500}
+         'ToIY_history': 500}
 
 plt.rcParams["font.size"] = "18"
 
@@ -42,15 +42,23 @@ class Plot:
     Plots a list of sample paths in the same figure with different plot backgrounds.
     """
 
-    def __init__(self, instance, policy_data, real_history_end_date, real_data, sim_data, var, color='teal',
+    def __init__(self,
+                 instance,
+                 real_history_end_date,
+                 real_data,
+                 sim_data,
+                 var,
+                 central_path=0,
+                 color=('teal', 'paleturquoise'),
                  text_size=28):
+
         self.instance = instance
         self.real_history_end_date = real_history_end_date
-        self.policy_data = policy_data
         self.real_data = real_data
-        self.sim_data = np.sum(sim_data, axis=(1, 2))
+        self.sim_data = [np.sum(s, axis=(1, 2)) for s in sim_data]
         self.var = var
-        self.T = len(np.sum(sim_data, axis=(1, 2)))
+        self.central_path = central_path
+        self.T = len(np.sum(sim_data[0], axis=(1, 2)))
         self.T_real = (real_history_end_date - instance.start_date).days
         self.y_lim = y_lim
         self.text_size = text_size
@@ -76,7 +84,8 @@ class Plot:
             real_h_plot = self.ax1.scatter(range(self.T_real), self.real_data[0:self.T_real], color='maroon',
                                            zorder=100, s=15)
 
-        self.ax1.plot(range(self.T), self.sim_data, color)
+        self.ax1.plot(range(self.T), np.transpose(np.array(self.sim_data)), color[1])
+        self.ax1.plot(range(self.T), self.sim_data[self.central_path], color[0])
 
         # plot a vertical line to separate history from projections:
         self.ax1.vlines(self.T_real, 0, y_lim[self.var], colors='k', linewidth=3)
@@ -84,7 +93,7 @@ class Plot:
         # Plot styling:
         # Axis limits:
         self.ax1.set_ylim(0, y_lim[self.var])
-        self.policy_ax.set_ylim(0, 1)
+        self.policy_ax.set_ylim(0, y_lim[self.var])
         self.ax1.set_ylabel(compartment_names[self.var])
         self.actions_ax.set_xlim(0, self.T)
         self.set_x_axis()
@@ -117,9 +126,8 @@ class Plot:
         else:
             percent = 1
         n_day = self.instance.config["moving_avg_len"]
-
-        self.sim_data = [self.sim_data[i: min(i + n_day, self.T)].mean() / percent for i in
-                         range(self.T)]
+        self.sim_data = [[s[i: min(i + n_day, self.T)].mean() / percent for i in
+                          range(self.T)] for s in self.sim_data]
 
         if self.real_data is not None:
             real_data = np.array(self.real_data)
@@ -133,8 +141,8 @@ class Plot:
         """
         n_day = self.instance.config["moving_avg_len"]
         total_population = np.sum(self.instance.N, axis=(0, 1))
-        self.sim_data = [self.sim_data[i: min(i + n_day, self.T)].sum() * 100000 / total_population
-                         for i in range(self.T)]
+        self.sim_data = [[s[i: min(i + n_day, self.T)].sum() * 100000 / total_population
+                          for i in range(self.T)] for s in self.sim_data]
 
         if self.real_data is not None:
             real_data = np.array(self.real_data[0:self.T_real])
@@ -147,10 +155,10 @@ class Plot:
         """
         # Axis ticks: write the name of the month on the x-axis:
         self.ax1.xaxis.set_ticks(
-            [t for t, d in enumerate(self.instance.cal.calendar) if (d.day == 1 and d.month % 2 == 1)])
+            [t for t, d in enumerate(self.instance.cal.calendar) if (d.day == 1)])
         self.ax1.xaxis.set_ticklabels(
             [f' {py_cal.month_abbr[d.month]} ' for t, d in enumerate(self.instance.cal.calendar) if
-             (d.day == 1 and d.month % 2 == 1)],
+             (d.day == 1)],
             rotation=0,
             fontsize=22)
 
@@ -215,8 +223,8 @@ class Plot:
             u_ub = thresholds[id_tr + 1] if id_tr + 1 < len(thresholds) else y_lim[self.var]
             if u_lb >= -1 and u_ub >= 0:
                 self.policy_ax.fill_between(range(self.T_real, self.T + 1),
-                                            u_lb / y_lim[self.var],
-                                            u_ub / y_lim[self.var],
+                                            u_lb,
+                                            u_ub,
                                             color=u_color,
                                             alpha=u_alpha,
                                             linewidth=0.0,
@@ -233,7 +241,8 @@ class Plot:
         (I can combine this method with the horizontal plot later if necessary).
         """
         for u, state in enumerate(surge_states):
-            fill = [True if s == u else False for s in surge_history[self.T_real:self.T]]
+            fill = [True if s == u else False for s in surge_history[self.central_path][self.T_real:self.T]]
+            fill = [True if fill[i] or fill[i - 1] else False for i in range(len(fill))]
             for id_tr, tr in enumerate(thresholds[state]):
                 u_color = tier_colors[id_tr]
                 u_alpha = 0.6
@@ -241,8 +250,8 @@ class Plot:
                 u_ub = thresholds[state][id_tr + 1] if id_tr + 1 < len(thresholds[state]) else y_lim[self.var]
                 if u_lb >= -1 and u_ub >= 0:
                     self.policy_ax.fill_between(range(self.T_real, self.T),
-                                                u_lb / y_lim[self.var],
-                                                u_ub / y_lim[self.var],
+                                                u_lb,
+                                                u_ub,
                                                 color=u_color,
                                                 alpha=u_alpha,
                                                 linewidth=0.0,
@@ -266,22 +275,33 @@ class Plot:
         for u in range(len(tier_colors)):
             u_color = tier_colors[u]
             u_alpha = 0.6
-            fill = np.array(tier_history[self.T_real:self.T]) == u
+            fill = np.array(tier_history[self.central_path][self.T_real:self.T]) == u
+            fill = [True if fill[i] or fill[i - 1] else False for i in range(len(fill))]
             self.policy_ax.fill_between(range(self.T_real, self.T),
                                         0,
-                                        1,
+                                        y_lim[self.var],
                                         where=fill,
                                         color=u_color,
                                         alpha=u_alpha,
-                                        linewidth=1,
-                                        step='pre')
+                                        linewidth=0)
         self.save_plot()
 
-    def dali_plot(self):
+    def dali_plot(self, tier_history, tier_colors):
         """
-        Plot the tier history colors of different sample paths. I'll implement this plot when I moved to plotting
-        multiple sample paths.
+        Plot the tier history colors. Different sample paths may be in different stages during the same time period.
+        color the background to tier color according the percent of paths in that particular tier during a particular
+        time. (e.g. if 40% of paths are in blue for a certain day then 40% of the background will be blue for that day.)
         :return:
         """
-        pass
-        # TODO: integrate the code for this later.
+        bottom_tier = 0
+        for u in range(len(tier_colors)):
+            color_fill = (sum(np.array(t[self.T_real:self.T]) == u for t in tier_history) / len(tier_history)) * y_lim[self.var]
+            self.policy_ax.bar(range(self.T_real, self.T),
+                               color_fill,
+                               color=tier_colors[u],
+                               bottom=bottom_tier,
+                               width=1,
+                               alpha=0.6,
+                               linewidth=0)
+            bottom_tier += np.array(color_fill)
+        self.save_plot()

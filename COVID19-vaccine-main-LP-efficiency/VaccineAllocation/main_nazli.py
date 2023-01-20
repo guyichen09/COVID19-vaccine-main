@@ -1,10 +1,9 @@
 from SimObjects import MultiTierPolicy, CDCTierPolicy
 from DataObjects import City, TierInfo, Vaccine
 from SimModel import SimReplication
+from OptTools import evaluate_single_policy_on_sample_path, get_sample_paths
 from InputOutputTools import export_rep_to_json
-from Plotting_nazli import plot_from_file
-
-
+from Plotting import plot_from_file, report_from_file
 # Import other Python packages
 import numpy as np
 import datetime as dt
@@ -47,27 +46,44 @@ staffed_thresholds = {"non_surge": (-1, -1, 0.1, 0.15, 0.15), "surge": (-1, -1, 
 # the equivalent values in the model and save to the policy.json.
 equivalent_thresholds = {"non_surge": (-1, -1, 28.57, 57.14, 57.14), "surge": (-1, -1, -1, 28.57, 28.57)}
 ctp = CDCTierPolicy(austin, tiers, case_threshold, hosp_adm_thresholds, staffed_thresholds)
+seed = -1
+rep = SimReplication(austin, vaccines, ctp, seed)
 
-rep = SimReplication(austin, vaccines, ctp, -1)
+time_end = austin.cal.calendar.index(dt.datetime(2020, 4, 30))
+# rep.simulate_time_period(time_end)
+# base_filename = f"{austin.path_to_input_output}/{seed}_1"
+# export_rep_to_json(
+#     rep,
+#     f"{base_filename}_sim.json",
+#     f"{base_filename}_v0.json",
+#     f"{base_filename}_v1.json",
+#     f"{base_filename}_v2.json",
+#     f"{base_filename}_v3.json",
+#     f"{base_filename}_policy.json"
+# )
+#
+# end_history = dt.datetime(2022, 4, 3)
+#
+# plot_from_file([-1],
+#                1,
+#                austin,
+#                end_history,
+#                equivalent_thresholds)
 
-time_end = austin.cal.calendar.index(dt.datetime(2022, 9, 30))
-rep.simulate_time_period(time_end)
+#################################################################################################################
+seed = 1
+num_reps = 1
+time_points = [dt.datetime(2020, 3, 15), dt.datetime(2020, 4, 30)]
+time_points = [austin.cal.calendar.index(date) for date in time_points]
+get_sample_paths(austin, vaccines, 0.75, num_reps, seed, time_points)
 
-export_rep_to_json(
-    rep,
-    austin.path_to_data / "output.json",
-    austin.path_to_data / "v0.json",
-    austin.path_to_data / "v1.json",
-    austin.path_to_data / "v2.json",
-    austin.path_to_data / "v3.json",
-    austin.path_to_data / "policy.json"
-)
-
-end_history = dt.datetime(2022, 4, 3)
-
-plot_from_file(austin.path_to_data / "output.json",
-               austin.path_to_data / "policy.json",
-               austin,
-               end_history,
-               equivalent_thresholds)
-
+# new_seed = 3
+# end_time = austin.cal.calendar.index(dt.datetime(2020, 8, 31))
+# base_filename = f"{austin.path_to_input_output}/{seed}_"
+# evaluate_single_policy_on_sample_path(austin, vaccines, ctp, end_time, new_seed, num_reps, base_filename)
+# real_history_end_date = dt.datetime(2020, 5, 1)
+# equivalent_thresholds = {"non_surge": (-1, -1, 28.57, 57.14, 57.14), "surge": (-1, -1, -1, 28.57, 28.57)}
+# plot_from_file([seed], num_reps, austin, real_history_end_date, equivalent_thresholds)
+# stats_start_date = dt.datetime(2020, 5, 1)
+# stats_end_date = dt.datetime(2020, 8, 31)
+# report_from_file([seed], num_reps, austin, stats_start_date, stats_end_date )

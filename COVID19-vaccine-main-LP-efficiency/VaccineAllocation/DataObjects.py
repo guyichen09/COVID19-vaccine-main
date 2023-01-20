@@ -130,6 +130,8 @@ class City:
     ):
         self.city = city
         self.path_to_data = base_path / "instances" / f"{city}"
+        # Extra folder to store the json files for inputting outputting simulation data:
+        self.path_to_input_output = base_path / "input_output_folder" / f"{city}"
 
         with open(str(self.path_to_data / config_filename), "r") as input_file:
             self.config = json.load(input_file)
@@ -726,7 +728,7 @@ class EpiSetup:
         Generates random parameters from a given random stream.
         Coupled parameters are updated as well.
         Args:
-            rng (RandomState): a RandomState instance from numpy.
+            rng (np.random.default_rng): a default_rng instance from numpy.
         """
 
         # rng = None  #rng
@@ -1059,7 +1061,7 @@ class ParamDistribution:
         """
         Sample random variable with given distribution name, parameters and dimension.
         Args:
-            rng (np.RandomState): a random stream. If None, det_val is returned.
+            rng (np.random.default_rng): a random stream. If None, det_val is returned.
             dim (int or tuple): dimmention of the parameter (default is 1).
         """
         if rng is not None:
