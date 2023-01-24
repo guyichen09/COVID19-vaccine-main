@@ -130,12 +130,6 @@ for threshold in new_thresholds:
 
 breakpoint()
 
-# np.savetxt("tier_histories.csv", np.array(tier_histories_array), delimiter=",")
-np.savetxt("feasibilities.csv", np.array(feasibilities), delimiter=",")
-# np.savetxt("costs.csv", np.array(costs), delimiter=",")
-
-breakpoint()
-
 ###############################################################################
 
 highest_stage_possible = 4

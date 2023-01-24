@@ -72,7 +72,7 @@ austin = City("austin",
               "austin_real_icu_updated.csv",
               "austin_hosp_ad_updated.csv",
               "austin_real_death_from_hosp_updated.csv",
-              "austin_real_total_death.csv",
+              "austin_real_cum_total_death.csv",
               "delta_prevalence.csv",
               "omicron_prevalence.csv",
               "variant_prevalence.csv")
