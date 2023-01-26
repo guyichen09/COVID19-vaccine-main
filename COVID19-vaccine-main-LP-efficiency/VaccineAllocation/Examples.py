@@ -67,14 +67,13 @@ austin = City("austin",
               "austin_test_IHT.json",
               "calendar.csv",
               "setup_data_Final.json",
+              "variant.json",
               "transmission.csv",
               "austin_real_hosp_updated.csv",
               "austin_real_icu_updated.csv",
               "austin_hosp_ad_updated.csv",
               "austin_real_death_from_hosp_updated.csv",
-              "austin_real_cum_total_death.csv",
-              "delta_prevalence.csv",
-              "omicron_prevalence.csv",
+              "austin_real_total_death.csv",
               "variant_prevalence.csv")
 
 tiers = TierInfo("austin", "tiers5_opt_Final.json")
@@ -342,8 +341,6 @@ rep = SimReplication(austin, vaccines, ctp, -1)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Example D: Parameter fitting
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ToDo: I am not very happy with the parameter tuning file and I'll update it.
-# But here is an example of parameter fitting:
+# Check out param_fitting_example.py script.
 
 

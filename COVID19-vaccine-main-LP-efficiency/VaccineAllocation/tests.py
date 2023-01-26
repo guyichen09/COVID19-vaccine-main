@@ -29,11 +29,13 @@ austin = City("austin",
 
 tiers = TierInfo("austin", "tiers5_opt_Final.json")
 
-vaccines = Vaccine(austin,
-                   "austin",
-                   "vaccines.json",
-                   "booster_allocation_fixed.csv",
-                   "vaccine_allocation_fixed.csv")
+vaccines = Vaccine(
+    austin,
+    "austin",
+    "vaccines.json",
+    "booster_allocation_fixed.csv",
+    "vaccine_allocation_fixed.csv",
+)
 
 print(time.time() - start)
 start = time.time()
