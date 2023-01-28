@@ -18,6 +18,8 @@ import time
 
 ###############################################################################
 
+def discrete_approx(rate, timestep):
+    return 1 - np.exp(-rate / timestep)
 
 class SimReplication:
     def __init__(self, instance, vaccine, policy, rng_seed):
@@ -276,21 +278,29 @@ class SimReplication:
             time_start and self.next_t, the last point at which it
             left off.
 
-        :param fixed_kappa_end_date: the end date for fixed transmission reduction (kappa). The staged-alert
-        policy will be called after this date. This is generally the end date of historical data, too.
-        Make sure the transmission.csv file has reduction values until and including fixed_kappa_end_date.
-            If fixed_kappa_end_date is None, the staged-alert policy will be called form the start of the
-            simulation date.
-
         :param time_end: [int] nonnegative integer -- time t (number of days)
             to simulate up to.
+        :param fixed_kappa_end_date: the end date for fixed transmission
+            reduction (kappa). The staged-alert policy will be called after
+            this date. This is generally the end date of historical data, too.
+            Make sure the transmission.csv file has reduction values until and
+            including fixed_kappa_end_date. If fixed_kappa_end_date is None,
+            the staged-alert policy will be called from the start of the
+            simulation date.
         :return: [None]
         """
 
+        # Begin where the simulation last left off
         time_start = self.next_t
+
+        # If fixed_kappa_end_date is None,
+        #   then staged-alert policy dictates fixed transmission reduction
+        #   (kappa),  even if historical transmission reduction data
+        #   is available.
         if fixed_kappa_end_date is None:
             fixed_kappa_end_date = time_start - 1
 
+        # Call simulate_t as subroutine from time_start to time_end
         for t in range(time_start, time_end):
 
             self.next_t += 1
@@ -300,21 +310,37 @@ class SimReplication:
             A = self.instance.A
             L = self.instance.L
 
+            # Clear attributes in self.state_vars + self.tracking_vars
+            #   since these only hold the most recent values
             for attribute in self.state_vars + self.tracking_vars:
                 setattr(self, attribute, np.zeros((A, L)))
 
+            # Update attributes in self.state_vars + self.tracking_vars --
+            #   their values are the sums of the same attributes
+            #   across all vaccine groups
             for attribute in self.state_vars + self.tracking_vars:
                 sum_across_vaccine_groups = 0
                 for v_group in self.vaccine_groups:
-                    assert (getattr(v_group, attribute) > -1e-2).all(), \
-                        f"fPop negative value of {getattr(v_group, attribute)} " \
-                        f"on compartment {v_group.v_name}.{attribute} at time {self.instance.cal.calendar[t]}, {t}"
                     sum_across_vaccine_groups += getattr(v_group, attribute)
+
+                    # LP note -- commented this assertion because we
+                    #   already have total_imbalance assertion later --
+                    #   might want to uncomment or consider making this a toggle
+                    #   for debugging purposes
+                    # assert (getattr(v_group, attribute) > -1e-2).all(), \
+                    #     f"fPop negative value of {getattr(v_group, attribute)} " \
+                    #     f"on compartment {v_group.v_name}.{attribute} at time " \
+                    #     f"{self.instance.cal.calendar[t]}, {t}"
+
                 setattr(self, attribute, sum_across_vaccine_groups)
 
+            # We are interested in the history, not just current values, of
+            #   certain variables -- save these current values
             for attribute in self.history_vars:
                 getattr(self, f"{attribute}_history").append(getattr(self, attribute))
 
+            # LP note -- might want to comment if not debugging and
+            #   want speedier simulation
             total_imbalance = np.sum(
                 self.S
                 + self.E
@@ -334,6 +360,19 @@ class SimReplication:
 
     def simulate_t(self, t_date, fixed_kappa_end_date):
 
+        '''
+        Advance the simulation 1 timepoint (day).
+
+        Subroutine called in simulate_time_period
+
+        :param t_date: [int] nonnegative integer corresponding to
+            current timepoint to simulate.
+        :param fixed_kappa_end_date: see simulate_time_period
+        :return: [None]
+        '''
+
+        # Get dimensions (number of age groups,
+        #   number of risk groups,
         A = self.instance.A
         L = self.instance.L
         N = self.instance.N
@@ -343,6 +382,7 @@ class SimReplication:
         t = t_date
 
         epi = copy.deepcopy(self.epi_rand)
+
         if t <= fixed_kappa_end_date:
             # If the transmission reduction is fixed don't call the policy object.
             phi_t = epi.effective_phi(
@@ -396,7 +436,7 @@ class SimReplication:
         else:
             epi.update_icu_all(t, self.instance.otherInfo)
 
-        discrete_approx = self.discrete_approx
+        discrete_approx = discrete_approx
         step_size = self.step_size
         get_binomial_transition_quantity = self.get_binomial_transition_quantity
 
@@ -411,7 +451,6 @@ class SimReplication:
         rate_ICUR = discrete_approx((1 - epi.nu_ICU) * epi.gamma_ICU, step_size)
         rate_immune = discrete_approx(immune_evasion, step_size)
 
-        start = time.time()
         for _t in range(step_size):
             # Dynamics for dS
 
@@ -435,7 +474,7 @@ class SimReplication:
                     dSprob = np.sum(temp3, axis=(2, 3))
                     dSprob_sum = dSprob_sum + dSprob
 
-                if v_groups.v_name in {"first_dose", "second_dose"}:
+                if v_groups.v_name in {"second_dose"}:
                     # If there is immune evasion, there will be two outgoing arc from S_vax. Infected people will
                     # move to E compartment. People with waned immunity will go the S_waned compartment.
                     # _dS: total rate for leaving S compartment.
@@ -579,8 +618,6 @@ class SimReplication:
                 v_groups._ToIA[_t] = PAIA
                 v_groups._ToIY[_t] = PYIY
 
-        start = time.time()
-
         for v_groups in self.vaccine_groups:
             # End of the daily discretization
             for attribute in self.state_vars:
@@ -648,20 +685,13 @@ class SimReplication:
                 event = self.vaccine.event_lookup(vaccine_type, calendar[t])
 
                 if event is not None:
-
                     S_out = np.reshape(
                         self.vaccine.vaccine_allocation[vaccine_type][event][
                             "assignment"
                         ],
                         (A * L, 1),
                     )
-                    if v_groups.v_name in "first_dose" and rate_immune > 0:
-                        S_out = rate_immune * np.reshape(
-                            self.vaccine.vaccine_allocation[vaccine_type][
-                                event
-                            ]["assignment"],
-                            (A * L, 1),
-                        )
+
                     if v_groups.v_name == "waned":
                         N_out = N_temp["waned"] + N_temp["second_dose"]
                     else:
@@ -680,14 +710,12 @@ class SimReplication:
                         ]
                     ).reshape((A, L))
 
-                    out_sum += ratio_S_N * S_temp[v_groups.v_name]
-
+                    out_sum += (ratio_S_N * S_temp[v_groups.v_name]).astype(int)
 
             in_sum = np.zeros((A, L))
             S_in = np.zeros((A * L, 1))
             N_in = np.zeros((A * L, 1))
             for vaccine_type in v_groups.v_in:
-
                 for v_g in self.vaccine_groups:
                     if (
                             v_g.v_name
@@ -705,13 +733,6 @@ class SimReplication:
                         (A * L, 1),
                     )
 
-                    if v_groups.v_name == "second_dose" and v_temp.v_name == "first_dose" and rate_immune > 0:
-                        S_in = rate_immune * np.reshape(
-                            self.vaccine.vaccine_allocation[vaccine_type][
-                                event
-                            ]["assignment"],
-                            (A * L, 1),
-                        )
                     if v_temp.v_name == "waned":
                         N_in = N_temp["waned"] + N_temp["second_dose"]
                     else:
@@ -731,7 +752,7 @@ class SimReplication:
                         ]
                     ).reshape((A, L))
 
-                    in_sum += ratio_S_N * S_temp[v_temp.v_name]
+                    in_sum += (ratio_S_N * S_temp[v_temp.v_name]).astype(int)
 
             v_groups.S = v_groups.S + (np.array(in_sum - out_sum))
             S_after = np.zeros((5, 2))
@@ -748,8 +769,18 @@ class SimReplication:
 
     def reset(self):
 
-        A = self.instance.A
-        L = self.instance.L
+        '''
+        In-place "resets" the simulation by clearing simulation data
+            and reverting the time simulated to 0.
+        Does not reset the random number generator, so
+            simulating a replication that has been reset
+            pulls new random numbers from where the random
+            number generator last left off.
+        Does not reset or resample the previously randomly sampled
+            epidemiological parameters either.
+
+        :return: [None]
+        '''
 
         self.init_vaccine_groups()
 
@@ -758,16 +789,26 @@ class SimReplication:
 
         self.next_t = 0
 
-    def get_binomial_transition_quantity(self, n, p, round_opt=1):
+    def get_binomial_transition_quantity(self, n, p):
+
+        '''
+        Either returns mean value of binomial distribution
+            with parameters n, p or samples from that
+            distribution, depending on whether self.rng is
+            specified (depending on if simulation is run
+            deterministically or not).
+
+        :param n: [float] nonnegative value -- can be non-integer
+            if running simulation deterministically, but must
+            be integer to run simulation stochastically since
+            it is parameter of binomial distribution
+        :param p: [float] value in [0,1] corresponding to
+            probability parameter in binomial distribution
+        :return: [int] nonnegative integer that is a realization
+            of a binomial random variable
+        '''
 
         if self.rng is None:
             return n * p
         else:
-            if round_opt:
-                nInt = np.round(n)
-                return self.rng.binomial(nInt.astype(int), p)
-            else:
-                return self.rng.binomial(n, p)
-
-    def discrete_approx(self, rate, timestep):
-        return 1 - np.exp(-rate / timestep)
+            return self.rng.binomial(np.round(n).astype(int), p)
