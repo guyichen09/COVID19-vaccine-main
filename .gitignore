@@ -14,7 +14,7 @@
 *.lp
 *.ilp
 *.mps
-
+VaccineAllocation/instances/cook/Cases_WW_2022_11_10.csv
 
 # unwanted output
 *./temp

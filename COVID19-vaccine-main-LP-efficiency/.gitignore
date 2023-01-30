@@ -9,7 +9,7 @@
 *.mat
 *.pdf
 *.sh
-
+VaccineAllocation/instances/cook/Cases_WW_2022_11_10.csv
 # Math prog files
 *.lp
 *.ilp
