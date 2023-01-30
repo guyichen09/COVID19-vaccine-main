@@ -171,7 +171,7 @@ class VaccineGroup:
         step_size = instance.config['step_size']
 
         self.state_vars = ("S", "E", "IA", "IY", "PA", "PY", "R", "D", "IH", "ICU")
-        self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY", "ToIHD", "ToIH")
+        self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT", "ToICUD", "ToIYD", "ToIA", "ToIY", "ToIHD", "ToIH", "ToPY")
 
         for attribute in self.state_vars:
             setattr(self, attribute, np.zeros((A, L)))

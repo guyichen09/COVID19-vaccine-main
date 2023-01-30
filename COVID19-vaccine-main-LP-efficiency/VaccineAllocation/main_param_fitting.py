@@ -98,18 +98,18 @@ cocoon_factor = 1 + c / 100
 transmission_file_name = "transmission_lsq_" + str(cocoon_factor) + "_apr" + ".csv"
 
 cook = City("cook",
-        "cook_test_IHT.json",
-        "calendar.csv",
-        "setup_data_param_fit_YHR.json",
-        transmission_file_name,
-        "cook_hosp_region_sum_estimated.csv",
-        "cook_icu_estimated_adjusted.csv",
-        "sensitive_line_list_admission_processed_7_day.csv",
-        "cook_deaths_from_hosp_est.csv",
-        "cook_deaths.csv",
-        "delta_prevalence.csv",
-        "omicron_prevalence.csv",
-        "variant_prevalence.csv")
+              "cook_test_IHT.json",
+              "calendar.csv",
+              "setup_data_param_fit_YHR.json",
+              "transmission_lsq_1.0_apr.csv",
+              "cook_hosp_region_sum_estimated.csv",
+              "cook_icu_estimated_adjusted.csv",
+              "sensitive_line_list_admission_processed.csv",
+              "cook_deaths_from_hosp_est.csv",
+              "cook_deaths.csv",
+              "delta_prevalence.csv",
+              "omicron_prevalence.csv",
+              "variant_prevalence.csv")
 
 # tiers = TierInfo("cook", "tiers5_opt_Final.json")
 
@@ -131,7 +131,7 @@ rep = SimReplication(cook, vaccines, None, None)
 #   of the user-specified "calendar.csv") works.
 # Attributes in the SimReplication instance are updated in-place
 #   to reflect the most current simulation state.
-rep.simulate_time_period(117)
+rep.simulate_time_period(115)
 # rep_austin.simulate_time_period(154)
 # After simulating, we can query the R-squared.
 # If the simulation has been simulated for fewer days than the
@@ -141,7 +141,7 @@ rep.simulate_time_period(117)
 
 # After simulating, we expert it to json file
 
-#     export_rep_to_json(rep, "./output/cook/" + transmission_file_name[:-4] + ".json", "v0_a.json", "v1_a.json", "v2_a.json", "v3_a.json")
+# export_rep_to_json(rep, "./output/cook/ToPY_" + transmission_file_name[:-4] + ".json", "v0_a.json", "v1_a.json", "v2_a.json", "v3_a.json")
 # # export_rep_to_json(rep_austin, "output_austin.json", "v0_a.json", "v1_a.json", "v2_a.json", "v3_a.json")
 
 
@@ -149,7 +149,7 @@ rep.simulate_time_period(117)
 # #   we can still use the same policy object as long as we clear it.
 # # mtp.reset()
 
-#     plot_from_file("./output/cook/" + transmission_file_name[:-4] + ".json", transmission_file_name[:-4] + ".json", cook)
+# plot_from_file("./output/cook/" + "ToPY_transmission_lsq_1.0_apr" + ".json", "ToPY_transmission_lsq_1.0_apr" + ".json", cook)
 
 
 
@@ -217,7 +217,7 @@ x_bound = ([ 0, 0, 0, 0, 0],
 c = 0
 cocoon_factor = 1 + c / 100
 # transmission = run_fit(cook, vaccines, change_dates, x_bound, initial_guess, 1, 2.5, 10, 0, 0, cocoon_factor, dt.datetime(2020, 2, 17), dt.datetime(2020, 6, 13))
-# save_output(transmission, str(cocoon_factor) + "_apr_ih_icu", cook)
+# save_output(transmission, str(cocoon_factor) + "_apr_debug", cook)
 
 # # transmission = run_fit(austin, vaccines_austin, change_dates_austin,x_bound, initial_guess, 1.5, param1, param2, param2, dt.datetime(2020, 2, 28), dt.datetime(2020, 6, 26))
 # # save_output(transmission, austin)

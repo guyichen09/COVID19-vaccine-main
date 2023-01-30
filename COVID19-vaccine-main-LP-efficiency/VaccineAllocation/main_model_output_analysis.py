@@ -105,27 +105,48 @@ def linear_regression(simulation_filename, x_var_names, y_var_name):
         risk_age_x_vars = []
         risk_age_y_vars = []
         fig, ax = plt.subplots()
-        for i in range(1, 301):
-            with open("2323_" + str(i) + "_sim.json") as file:
-                data = json.load(file)
-            for x_var_name in x_var_names:
-                risk_age_x_vars = data[x_var_name]
-                x_vars = np.sum(np.sum(risk_age_x_vars, axis=1), axis=1)
-            risk_age_y_vars = data[y_var_name]
-            y_vars = np.sum(np.sum(risk_age_y_vars, axis=1), axis=1)
-            if len(x_vars) != len(y_vars):
-                y_vars = y_vars[1:]
-            x_vars = x_vars[:-lead_time]
-            risk_age_x_vars = risk_age_x_vars[:-lead_time]
-            y_vars = y_vars[lead_time:]
-            risk_age_y_vars = risk_age_y_vars[lead_time:]
-            total_x_vars.extend(x_vars)
-            total_y_vars.extend(y_vars)
-            total_risk_age_x_vars.extend(risk_age_x_vars)
-            total_risk_age_y_vars.extend(risk_age_y_vars)
-            ax.scatter(x_vars, y_vars, s= 0.5)
+        with open("./output/cook/ToPY_transmission_lsq_1.0_apr.json") as file:
+            data = json.load(file)
+        for x_var_name in x_var_names:
+            risk_age_x_vars = data[x_var_name]
+            x_vars = np.sum(np.sum(risk_age_x_vars, axis=1), axis=1)
+        risk_age_y_vars = data[y_var_name]
+        y_vars = np.sum(np.sum(risk_age_y_vars, axis=1), axis=1)
+        if len(x_vars) != len(y_vars):
+            y_vars = y_vars[1:]
+        x_vars = x_vars[:-lead_time]
+        risk_age_x_vars = risk_age_x_vars[:-lead_time]
+        y_vars = y_vars[lead_time:]
+        risk_age_y_vars = risk_age_y_vars[lead_time:]
+        total_x_vars.extend(x_vars)
+        total_y_vars.extend(y_vars)
+        total_risk_age_x_vars.extend(risk_age_x_vars)
+        total_risk_age_y_vars.extend(risk_age_y_vars)
+        ax.scatter(x_vars, y_vars, s= 0.5)
         ax.set_xlabel(x_var_name)
         ax.set_ylabel(y_var_name)
+
+        # for i in range(1, 301):
+        #     with open("./output/cook/sample_paths_2323/2323_" + str(i) + "_sim.json") as file:
+        #         data = json.load(file)
+        #     for x_var_name in x_var_names:
+        #         risk_age_x_vars = data[x_var_name]
+        #         x_vars = np.sum(np.sum(risk_age_x_vars, axis=1), axis=1)
+        #     risk_age_y_vars = data[y_var_name]
+        #     y_vars = np.sum(np.sum(risk_age_y_vars, axis=1), axis=1)
+        #     if len(x_vars) != len(y_vars):
+        #         y_vars = y_vars[1:]
+        #     x_vars = x_vars[:-lead_time]
+        #     risk_age_x_vars = risk_age_x_vars[:-lead_time]
+        #     y_vars = y_vars[lead_time:]
+        #     risk_age_y_vars = risk_age_y_vars[lead_time:]
+        #     total_x_vars.extend(x_vars)
+        #     total_y_vars.extend(y_vars)
+        #     total_risk_age_x_vars.extend(risk_age_x_vars)
+        #     total_risk_age_y_vars.extend(risk_age_y_vars)
+        #     ax.scatter(x_vars, y_vars, s= 0.5)
+        # ax.set_xlabel(x_var_name)
+        # ax.set_ylabel(y_var_name)
         
         
         total_x_vars = np.array(total_x_vars).reshape(-1, 1)
@@ -217,7 +238,7 @@ def empirical_90_pi_lr(simulation_filename, x_var_names, y_var_name):
         fig, ax = plt.subplots()
         x_y_pairs = []
         for i in range(1, 301):
-            with open("2323_" + str(i) + "_sim.json") as file:
+            with open("./output/cook/sample_paths_2323/2323_" + str(i) + "_sim.json") as file:
                 data = json.load(file)
             for x_var_name in x_var_names:
                 x_vars = data[x_var_name]
@@ -304,7 +325,7 @@ def empirical_yhr(simulation_filename):
         with open(simulation_filename) as file:
             data = json.load(file)
         risk_age_x_vars = data["PY_history"]
-        risk_age_y_vars = data["ToIH_history"]
+        risk_age_y_vars = data["ToIHT_history"]
         for age in range(5):
             for risk in range(2):
                 print("deterministic path")
@@ -320,12 +341,12 @@ def empirical_yhr(simulation_filename):
         risk_age_y_vars = []
         fig, ax = plt.subplots()
         for i in range(1, 301):
-            with open("2323_" + str(i) + "_sim.json") as file:
+            with open("./output/cook/sample_paths_2323/2323_" + str(i) + "_sim.json") as file:
                 data = json.load(file)
             
             risk_age_x_vars = data["PY_history"]
             x_vars = np.sum(np.sum(risk_age_x_vars, axis=1), axis=1)
-            risk_age_y_vars = data["ToIH_history"]
+            risk_age_y_vars = data["ToIHT_history"]
             y_vars = np.sum(np.sum(risk_age_y_vars, axis=1), axis=1)
             if len(x_vars) != len(y_vars):
                 y_vars = y_vars[1:]
@@ -347,6 +368,24 @@ def empirical_yhr(simulation_filename):
             mean_y_vars = np.mean(y_vars)
             print("empirical yhr:", mean_y_vars / mean_x_vars)
 
+def empirical_yhr_toPY(simulation_filename):
+    total_risk_age_x_vars = []
+    total_risk_age_y_vars = []
+    with open(simulation_filename) as file:
+        data = json.load(file)
+    risk_age_x_vars = data["ToIY_history"]
+    risk_age_y_vars = data["ToIHT_history"]
+    print("deterministic path")
+   
+            # x_vars = np.array(np.array(risk_age_x_vars)[:, age, risk]).reshape(-1, 1)
+    mean_x_vars = np.sum(np.array(data['ToIY_history']), axis=0)
+    # y_vars = np.array(np.array(risk_age_y_vars)[:, age, risk]).reshape(-1, 1)
+    mean_y_vars = np.sum(np.array(data['ToIHT_history']), axis=0)
+    print("empirical To_IH:", mean_y_vars)
+    print("empirical ToIY:", mean_x_vars)
+    print("empirical yhr:", mean_y_vars / mean_x_vars)
+
+
 
     
 
@@ -356,11 +395,13 @@ def empirical_yhr(simulation_filename):
 # linear_regression("./output/cook/output_cook_more_var.json", ["E_history"], "IH_history")
 # linear_regression("./output/cook/output_cook_more_var.json", ["E_history"], "ToIH_history")
 # linear_regression("./output/cook/output_cook_more_var.json", ["PY_history"], "IH_history")
-# linear_regression("./output/cook/output_cook_more_var.json", ["PY_history"], "ToIH_history")
+# linear_regression("./output/cook/output_cook_more_var.json", ["PY_history"], "ToIHT_history")
+linear_regression("./output/cook/output_cook_more_var.json", ["ToPY_history"], "ToIHT_history")
 # linear_regression("./output/cook/output_cook_more_var.json", ["ToIY_history"], "IH_history")
 # linear_regression("./output/cook/output_cook_more_var.json", ["ToIY_history"], "ToIH_history")
 
 
-empirical_90_pi_lr("./output/cook/output_cook_more_var.json", ["PY_history"], "ToIH_history")
+# empirical_90_pi_lr("./output/cook/output_cook_more_var.json", ["PY_history"], "ToIHT_history")
 
 # empirical_yhr("./output/cook/output_cook_more_var.json")
+# empirical_yhr_toPY("./output/cook/ToPY_transmission_lsq_1.0_apr.json")

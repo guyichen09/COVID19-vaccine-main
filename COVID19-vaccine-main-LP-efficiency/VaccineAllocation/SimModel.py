@@ -64,6 +64,7 @@ class SimReplication:
         self.ToIH_history = []
         self.E_history = []
         self.PY_history = []
+        self.ToPY_history = []
         # The next t that is simulated (automatically gets updated after simulation)
         # This instance has simulated up to but not including time next_t
         self.next_t = 0
@@ -71,7 +72,7 @@ class SimReplication:
         # Tuples of variable names for organization purposes
         self.state_vars = ("S", "E", "IA", "IY", "PA", "PY", "R", "D", "IH", "ICU")
         self.tracking_vars = ("IYIH", "IYICU", "IHICU", "ToICU", "ToIHT",
-                              "ToICUD", "ToIYD", "ToIA", "ToIY", "ToIHD", "ToIH")
+                              "ToICUD", "ToIYD", "ToIA", "ToIY", "ToIHD", "ToIH", "ToPY")
 
     def init_rng(self):
         '''
@@ -369,10 +370,11 @@ class SimReplication:
             self.ToIH_history.append(self.ToIH)
             self.E_history.append(self.E)
             self.PY_history.append(self.PY)
+            self.ToPY_history.append(self.ToPY)
             total_imbalance = np.sum(
                 self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU) - np.sum(
                 self.instance.N)
-
+            # print("TOTAL BALANCE:", np.sum(self.S + self.E + self.IA + self.IY + self.R + self.D + self.PA + self.PY + self.IH + self.ICU))
             assert np.abs(
                 total_imbalance) < 1E-2, f'fPop unbalanced {total_imbalance} at time {self.instance.cal.calendar[t]}, {t}'
 
@@ -452,18 +454,10 @@ class SimReplication:
             np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]),
             step_size)
         # print("rate_iyicu", rate_IYICU)
-        print("rate_IYIH", rate_IYH + rate_IYICU)
-        print("rate_pyiy", rate_PYIY)
+        # print("rate_IYIH", rate_IYH + rate_IYICU)
+        # print("rate_pyiy", rate_PYIY)
         
         rate_IHICU = discrete_approx(epi.nu * epi.mu, step_size)
-        # print(epi.nu)
-        # print("mu")
-        # print(epi.mu)
-        # print("----------------------------rIH----------------")
-        # print(epi.rIH)
-
-        # print("----------------------------IYFR----------------")
-        # print(epi.IYFR)
         rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH * (1 - epi.IHFR), step_size)
         rate_IHD = discrete_approx((1 - epi.nu) * epi.gamma_IH * epi.IHFR, step_size)
         rate_ICUD = discrete_approx(epi.nu_ICU * epi.mu_ICU, step_size)
@@ -521,7 +515,7 @@ class SimReplication:
                 EPY = get_binomial_transition_quantity(E_out, epi.tau * (1 - v_groups.v_tau_reduct))
                 PYIY = get_binomial_transition_quantity(v_groups._PY[_t], rate_PYIY)
                 v_groups._PY[_t + 1] = v_groups._PY[_t] + EPY - PYIY
-                print("rate_py_ih_ratio", (rate_IYH + rate_IYICU) * 5/(-rate_PYIY  +  epi.tau * (1 - v_groups.v_tau_reduct)) / epi.YHR)
+                v_groups._ToPY[_t] = EPY
                 # Dynamics for PA
                 EPA = E_out - EPY
                 PAIA = get_binomial_transition_quantity(v_groups._PA[_t], rate_PAIA)
@@ -558,7 +552,17 @@ class SimReplication:
                     v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR - immune_escape_R
                 else:
                     v_groups._R[_t + 1] = v_groups._R[_t] + IHR + IYR + IAR + ICUR
-
+                
+                if v_groups.v_name == "v_0":
+                    a = 1 / rate_PYIY 
+                    b =  (1 / (rate_IYH + rate_IYICU))
+                    b = (rate_IYH + rate_IYICU) /(-rate_IYR - rate_IYD - rate_IYH - rate_IYICU)
+                    # print("rate_py_ih_ratio", a)
+                    # print("rate_iy_ih_ratio", b)
+                    # print(a)
+                    
+                    # print("PY:", v_groups._PY[_t], EPY - PYIY, "rate",  -rate_PYIY  +  epi.tau * (1 - v_groups.v_tau_reduct))
+                    # print("ToIH",rate_IYH + rate_IYICU)
                 # Dynamics for D
                 v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD + IHD
                 v_groups._ToICUD[_t] = ICUD
@@ -686,6 +690,10 @@ class SimReplication:
         self.ToIYD_history = []
         self.ToIHD_history = []
         self.ToIH_history = []
+
+        self.E_history = []
+        self.PY_history = []
+        self.ToPY_history = []
 
         self.next_t = 0
 

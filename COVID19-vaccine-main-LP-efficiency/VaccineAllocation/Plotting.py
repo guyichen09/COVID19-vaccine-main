@@ -19,20 +19,20 @@ def plot_from_file(simulation_filename, out_file, instance):
         plt.clf()
         start_date = instance.start_date
         fig, ax = plt.subplots()
-        for i in range(1, 301):
-            with open("2323_" + str(i) + "_sim.json") as file:
-                data = json.load(file)
-            y_data = data[var]
-            start_date = instance.start_date
-            num_days = len(y_data)
-            x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
-            ax.plot(x_axis, np.sum(np.sum(y_data, axis=1), axis=1),color="gray")
+        # for i in range(1, 301):
+        #     with open("2323_" + str(i) + "_sim.json") as file:
+        #         data = json.load(file)
+        #     y_data = data[var]
+        #     start_date = instance.start_date
+        #     num_days = len(y_data)
+        #     x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
+        #     ax.plot(x_axis, np.sum(np.sum(y_data, axis=1), axis=1),color="gray")
         with open(simulation_filename) as file:
             data = json.load(file)
-        y_data = data[var]
-        num_days = len(y_data)
-        x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
         if var == "ICU_history":
+            y_data = data[var]
+            num_days = len(y_data)
+            x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
             ax.plot(x_axis, np.sum(np.sum(y_data, axis=1), axis=1), label= "fitted", zorder=2001)
             ax.scatter(x_axis, instance.real_hosp_icu[0:num_days], color="r", label="data", zorder=2000)
             fig.autofmt_xdate()
@@ -41,6 +41,9 @@ def plot_from_file(simulation_filename, out_file, instance):
             plt.legend() 
             plt.savefig("./plots/" + dir + prefix+  "ICU_history.png")
         elif var == "IH_history":
+            y_data = data[var]
+            num_days = len(y_data)
+            x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
             real_hosp = [ai - bi for (ai, bi) in zip(instance.real_hosp, instance.real_hosp_icu)]
             
             ax.plot(x_axis,  np.sum(np.sum(y_data, axis=1), axis=1), label= "fitted", zorder=2001)
@@ -51,6 +54,9 @@ def plot_from_file(simulation_filename, out_file, instance):
             plt.legend() 
             plt.savefig("./plots/" + dir +prefix+  "IH_history.png")
         elif var == "ToIHT_history":
+            y_data = data[var]
+            num_days = len(y_data)
+            x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
             # ax.scatter(x_axis, instance.real_hosp_ad[0:num_days], color="r", label="data")
             ax.plot(x_axis,  np.sum(np.sum(y_data, axis=1), axis=1), label= "fitted", zorder=2001)
             ax.scatter(x_axis, instance.real_hosp_ad[0:num_days], color="r", label="data", zorder=2000)
@@ -60,6 +66,9 @@ def plot_from_file(simulation_filename, out_file, instance):
             plt.legend() 
             plt.savefig("./plots/" + dir + prefix+ "admission_history.png")
         elif var == "D_history":
+            y_data = data[var]
+            num_days = len(y_data)
+            x_axis = [start_date + datetime.timedelta(days=x) for x in range(num_days)]
             ax.plot(x_axis,  np.sum(np.sum(y_data, axis=1), axis=1), label= "fitted", zorder=2001)
             ax.scatter(x_axis, np.cumsum(instance.real_death_total[0:num_days]), color="r", label="data", zorder=2000)
             fig.autofmt_xdate()
@@ -77,7 +86,6 @@ def plot_from_file(simulation_filename, out_file, instance):
     # print(total_death[0])
     total_admission = [np.array(a) + np.array(b) for (a, b) in zip(ToICU, ToIH)]
     # print(np.sum(total_admission))
-    print("total_admission", np.sum(np.sum(np.array(ToIHT), axis=0), axis=1))
     death_ratio = [np.array(a) / np.array(b) for (a, b) in zip(total_death, ToIHT)]
     death_ratio = np.array(death_ratio)
     # print(death_ratio)
@@ -103,8 +111,10 @@ def plot_from_file(simulation_filename, out_file, instance):
     calculated_IY_total_death = np.sum(np.sum(np.array(data['ToIYD_history']), axis=0), axis=1)
     print("calculated_IY_death", calculated_IY_total_death)
 
-    total_IY = np.sum(np.sum(np.array(data['ToIY_history']), axis=0), axis=1)
+    print("total_admission", np.sum(np.array(ToIHT), axis=0))
+    total_IY = np.sum(np.array(data['ToIY_history']), axis=0)
     print("total_IY", total_IY)
+    print(np.sum(np.array(ToIHT), axis=0)/ total_IY)
     # for (a, b) in zip(total_death, total_admission):
     #     # print(a) 
     #     # print(b)
