@@ -342,7 +342,6 @@ class SimReplication:
             efficacy susceptible compartment after Omicron becomes the prevalent
             virus type.
 
-        """
         Advance the simulation model from time_start up to
             but not including time_end.
 
@@ -360,7 +359,7 @@ class SimReplication:
             the staged-alert policy will be called from the start of the
             simulation date.
         :return: [None]
-        """
+        '''
 
         # Begin where the simulation last left off
         time_start = self.next_t
@@ -520,14 +519,11 @@ class SimReplication:
 
         rate_IYH = discrete_approx(
             np.array([[(epi.pi[a, l]) * epi.Eta[a] * epi.rIH for l in range(L)] for a in range(A)]), step_size)
-        # print("rate_iyh", rate_IYH)
+       
         rate_IYICU = discrete_approx(
             np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]),
             step_size)
-        # print("rate_iyicu", rate_IYICU)
-        # print("rate_IYIH", rate_IYH + rate_IYICU)
-        # print("rate_pyiy", rate_PYIY)
-        
+
         rate_IHICU = discrete_approx(epi.nu * epi.mu, step_size)
         rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH * (1 - epi.IHFR), step_size)
         rate_IHD = discrete_approx((1 - epi.nu) * epi.gamma_IH * epi.IHFR, step_size)
@@ -673,9 +669,6 @@ class SimReplication:
                 IHD = get_binomial_transition_quantity(
                     v_groups._IH[_t] - IHR, rate_IHD
                 )
-                # print("-----------------debug IHD ---------", (
-                        rate_IHR, rate_IHD, IHD)
-                                )
 
                 v_groups._IHICU[_t] = get_binomial_transition_quantity(v_groups._IH[_t] - IHR - IHD, rate_IHICU)
                 v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - IHD - v_groups._IHICU[_t]
