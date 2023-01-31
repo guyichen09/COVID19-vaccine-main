@@ -143,7 +143,7 @@ class ParameterFitting:
                     self.city.variant_pool.variants_data['epi_params'][var.split()[1]][var.split()[0]] = x_variables[idx]
 
         # Simulate the system with the new variables:
-        self.rep.simulate_time_period(self.time_frame[1])
+        self.rep.simulate_time_period(self.time_frame[1], self.time_frame[1])
 
         residual_error = []
         # Calculate the residual error:

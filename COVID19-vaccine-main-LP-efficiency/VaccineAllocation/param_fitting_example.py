@@ -7,7 +7,7 @@
 ###############################################################################
 
 from DataObjects import City, TierInfo, Vaccine
-from ParamFittingTools import ParameterFitting
+from Paramfitting_nazlican import ParameterFitting
 
 # Import other Python packages
 import numpy as np

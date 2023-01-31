@@ -18,8 +18,6 @@ import time
 
 ###############################################################################
 
-def discrete_approx(rate, timestep):
-    return 1 - np.exp(-rate / timestep)
 
 class SimReplication:
     def __init__(self, instance, vaccine, policy, rng_seed):
@@ -71,20 +69,22 @@ class SimReplication:
                              "S")
 
         # Keep track of the total number of immune evasion:
-        self.D_history = [np.zeros((A, L))]
         self.ToRS_immune = []  # waned natural immunity
         self.ToSS_immune = []  # waned vaccine induced immunity
 
         for attribute in self.history_vars:
             setattr(self, f"{attribute}_history", [])
-        self.ToICU_history = []
-        self.ToICUD_history = []
-        self.ToIYD_history = []
-        self.ToIHD_history = []
-        self.ToIH_history = []
-        self.E_history = []
-        self.PY_history = []
-        self.ToPY_history = []
+        
+        # TODO: Delete the following after debugging
+        # self.ToICU_history = []
+        # self.ToICUD_history = []
+        # self.ToIYD_history = []
+        # self.ToIHD_history = []
+        # self.ToIH_history = []
+        # self.E_history = []
+        # self.PY_history = []
+        # self.ToPY_history = []
+
         # The next t that is simulated (automatically gets updated after simulation)
         # This instance has simulated up to but not including time next_t
         self.next_t = 0
@@ -102,7 +102,10 @@ class SimReplication:
             "ToIA",
             "ToIY",
             "ToRS",
-            "ToSS", "ToIHD", "ToIH", "ToPY"
+            "ToSS", 
+            "ToIHD", 
+            "ToIH", 
+            "ToPY",
         )
 
     def init_rng(self):
@@ -336,19 +339,14 @@ class SimReplication:
 
         return rsq
 
-    def immune_escape(self, immune_escape_rate, t):
-        '''
-        This function moves recovered and vaccinated individuals to waning
-            efficacy susceptible compartment after Omicron becomes the prevalent
-            virus type.
+    def simulate_time_period(self, time_end, fixed_kappa_end_date=None):
 
+        """
         Advance the simulation model from time_start up to
             but not including time_end.
-
         Calls simulate_t as a subroutine for each t between
             time_start and self.next_t, the last point at which it
             left off.
-
         :param time_end: [int] nonnegative integer -- time t (number of days)
             to simulate up to.
         :param fixed_kappa_end_date: the end date for fixed transmission
@@ -359,7 +357,7 @@ class SimReplication:
             the staged-alert policy will be called from the start of the
             simulation date.
         :return: [None]
-        '''
+        """
 
         # Begin where the simulation last left off
         time_start = self.next_t
@@ -428,6 +426,7 @@ class SimReplication:
             assert (
                     np.abs(total_imbalance) < 1e-2
             ), f"fPop unbalanced {total_imbalance} at time {self.instance.cal.calendar[t]}, {t}"
+
 
     def simulate_t(self, t_date, fixed_kappa_end_date):
 
@@ -507,7 +506,7 @@ class SimReplication:
         else:
             epi.update_icu_all(t, self.instance.otherInfo)
 
-        discrete_approx = discrete_approx
+        discrete_approx = self.discrete_approx
         step_size = self.step_size
         get_binomial_transition_quantity = self.get_binomial_transition_quantity
 
@@ -516,16 +515,16 @@ class SimReplication:
         rate_IAR = discrete_approx(np.full((A, L), epi.gamma_IA), step_size)
         rate_PAIA = discrete_approx(np.full((A, L), epi.rho_A), step_size)
         rate_PYIY = discrete_approx(np.full((A, L), epi.rho_Y), step_size)
-
-        rate_IYH = discrete_approx(
-            np.array([[(epi.pi[a, l]) * epi.Eta[a] * epi.rIH for l in range(L)] for a in range(A)]), step_size)
-       
-        rate_IYICU = discrete_approx(
-            np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]),
-            step_size)
-
-        rate_IHICU = discrete_approx(epi.nu * epi.mu, step_size)
+        rate_IHICU = discrete_approx(epi.nu * epi.etaICU, step_size)
         rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH * (1 - epi.IHFR), step_size)
+        # TODO: delete this after debug
+        # rate_IYH = discrete_approx(
+        #     np.array([[(epi.pi[a, l]) * epi.Eta[a] * epi.rIH for l in range(L)] for a in range(A)]), step_size)
+       
+        # rate_IYICU = discrete_approx(
+        #     np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]),
+        #     step_size)
+
         rate_IHD = discrete_approx((1 - epi.nu) * epi.gamma_IH * epi.IHFR, step_size)
         rate_ICUD = discrete_approx(epi.nu_ICU * epi.mu_ICU, step_size)
         rate_ICUR = discrete_approx((1 - epi.nu_ICU) * epi.gamma_ICU, step_size)
@@ -595,7 +594,7 @@ class SimReplication:
                 )
                 PYIY = get_binomial_transition_quantity(v_groups._PY[_t], rate_PYIY)
                 v_groups._PY[_t + 1] = v_groups._PY[_t] + EPY - PYIY
-                v_groups._ToPY[_t] = EPY
+                # v_groups._ToPY[_t] = EPY
                 # Dynamics for PA
                 EPA = E_out - EPY
                 PAIA = get_binomial_transition_quantity(v_groups._PA[_t], rate_PAIA)
@@ -669,8 +668,9 @@ class SimReplication:
                 IHD = get_binomial_transition_quantity(
                     v_groups._IH[_t] - IHR, rate_IHD
                 )
-
-                v_groups._IHICU[_t] = get_binomial_transition_quantity(v_groups._IH[_t] - IHR - IHD, rate_IHICU)
+                v_groups._IHICU[_t] = get_binomial_transition_quantity(
+                    v_groups._IH[_t] - IHR - IHD, rate_IHICU
+                    )
                 v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - IHD - v_groups._IHICU[_t]
                 v_groups._ToIH[_t] = v_groups._IYIH[_t]
                 # Dynamics for ICU
@@ -724,6 +724,8 @@ class SimReplication:
             for attribute in self.tracking_vars:
                 setattr(v_groups, "_" + attribute, np.zeros((step_size, A, L)))
 
+        self.epi_rand = epi
+
     def vaccine_schedule(self, t_date, rate_immune):
         """
         Mechanically move people between compartments for daily vaccination at the end of a day. We only move people
@@ -731,7 +733,7 @@ class SimReplication:
         of recovered (in that case we assume that the vaccine is wasted). For vaccine amount of X, we adjust
         it by X * (S_v/N_v) where S_v is the total population in susceptible for vaccine status v and N_v is
         the total eligible population (see Vaccine.get_num_eligible for more detail) for vaccination in
-        self.epi_rand = epi        vaccine status v.
+        vaccine status v.
             The vaccination assumption is slightly different for booster dose. People don't mechanically move to the
         waned compartment, we draw binomial samples with a certain rate, but they get booster mechanically. That's why
         the definition of total eligible population is different. We adjust the vaccine amount X as
@@ -892,3 +894,6 @@ class SimReplication:
             return n * p
         else:
             return self.rng.binomial(np.round(n).astype(int), p)
+
+    def discrete_approx(self,rate, timestep):
+        return 1 - np.exp(-rate / timestep)

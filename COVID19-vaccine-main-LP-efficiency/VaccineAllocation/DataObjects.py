@@ -123,16 +123,12 @@ class City:
             variant_filename,
             transmission_filename,
             hospitalization_filename,
-                 hosp_icu_filename,
-                 hosp_admission_filename,
-                 death_from_hosp_filename,
-                 death_total_filename,
             hosp_icu_filename,
             hosp_admission_filename,
             death_from_hosp_filename,
             death_from_home_filename,
             variant_prevalence_filename,
-    , alpha=None, alpha_init = None, alpha_gw=False, hicur=None, rIH=None):
+            alpha=None, alpha_init = None, alpha_gw=False, hicur=None, rIH=None):
         self.city = city
         self.path_to_data = base_path / "instances" / f"{city}"
         # Extra folder to store the json files for inputting outputting simulation data:
