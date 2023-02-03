@@ -18,7 +18,6 @@ import time
 
 ###############################################################################
 
-
 class SimReplication:
     def __init__(self, instance, vaccine, policy, rng_seed):
         """
@@ -74,16 +73,6 @@ class SimReplication:
 
         for attribute in self.history_vars:
             setattr(self, f"{attribute}_history", [])
-        
-        # TODO: Delete the following after debugging
-        # self.ToICU_history = []
-        # self.ToICUD_history = []
-        # self.ToIYD_history = []
-        # self.ToIHD_history = []
-        # self.ToIH_history = []
-        # self.E_history = []
-        # self.PY_history = []
-        # self.ToPY_history = []
 
         # The next t that is simulated (automatically gets updated after simulation)
         # This instance has simulated up to but not including time next_t
@@ -102,10 +91,7 @@ class SimReplication:
             "ToIA",
             "ToIY",
             "ToRS",
-            "ToSS", 
-            "ToIHD", 
-            "ToIH", 
-            "ToPY",
+            "ToSS"
         )
 
     def init_rng(self):
@@ -115,7 +101,6 @@ class SimReplication:
         If self.rng_seed is None (not specified) or -1, then self.rng
             is set to None, so no random number generator is created
             and the simulation will run deterministically.
-
         :return: [None]
         """
 
@@ -141,7 +126,6 @@ class SimReplication:
             expected value from their distributions.
         After random sampling, some basic parameters
             are updated.
-
         :return: [None]
         """
 
@@ -165,14 +149,12 @@ class SimReplication:
             group 1 / "first_dose": partially vaccinated
             group 2 / "second_dose": fully vaccinated
             group 3 / "waned": waning efficacy
-
         We assume there is one type of vaccine with 2 doses.
         After 1 dose, individuals move from group 0 to 1.
         After 2 doses, individuals move from group 1 to group 2.
         After efficacy wanes, individuals move from group 2 to group 3.
         After booster shot, individuals move from group 3 to group 2.
                  - one type of vaccine with two-doses
-
         :return: [None]
         """
 
@@ -205,7 +187,6 @@ class SimReplication:
             current time of the simulation).
         If no policy is attached to this replication, return
             None.
-
         :return: [float] or [None] cumulative cost of the
             attached policy's enforced tiers (returns None
             if there is no attached policy)
@@ -229,7 +210,6 @@ class SimReplication:
         If no policy is attached to this replication or the
             current time of the simulation is still within
             the historical data time period, return None.
-
         :return: [Boolean] or [None] corresponding to whether
             or not the policy is estimated to be feasible
         """
@@ -256,10 +236,8 @@ class SimReplication:
             up to the current time of the simulation) to the
             historical data hospital numbers (over this same time
             interval).
-
         Note that this statistic is not exactly R-squared --
             and as a result it takes values outside of [-1, 1].
-
         :return: [float] current R-squared value
         """
 
@@ -276,66 +254,6 @@ class SimReplication:
         rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
             (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2
         )
-
-        return rsq
-    
-    def compute_gw_rsq(self):
-        '''
-        Return R-squared type statistic based on historical hospital
-            data (see pg. 10 in Yang et al. 2021), comparing
-            thus-far-simulated hospital numbers (starting from t = 0
-            up to the current time of the simulation) to the
-            historical data hospital numbers (over this same time
-            interval).
-
-        Note that this statistic is not exactly R-squared --
-            and as a result it takes values outside of [-1, 1].
-
-        :return: [float] current R-squared value
-        '''
-
-        f_benchmark = [a - b for (a, b) in zip(self.instance.real_hosp,self.instance.real_hosp_icu)]
-
-        IH_sim = np.array(self.IH_history)
-        IH_sim = IH_sim.sum(axis=(2, 1))
-        IH_sim = IH_sim[:self.t_historical_data_end]
-
-        if self.next_t < self.t_historical_data_end:
-            IH_sim = IH_sim[100:self.next_t]
-            f_benchmark = f_benchmark[100:self.next_t]
-
-        rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
-            (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
-
-        return rsq
-
-    def compute_icu_rsq(self):
-        '''
-        Return R-squared type statistic based on historical hospital
-            data (see pg. 10 in Yang et al. 2021), comparing
-            thus-far-simulated hospital numbers (starting from t = 0
-            up to the current time of the simulation) to the
-            historical data hospital numbers (over this same time
-            interval).
-
-        Note that this statistic is not exactly R-squared --
-            and as a result it takes values outside of [-1, 1].
-
-        :return: [float] current R-squared value
-        '''
-
-        f_benchmark = self.instance.real_hosp_icu
-
-        IH_sim = np.array(self.ICU_history)
-        IH_sim = IH_sim.sum(axis=(2, 1))
-        IH_sim = IH_sim[:self.t_historical_data_end]
-
-        if self.next_t < self.t_historical_data_end:
-            IH_sim = IH_sim[100:self.next_t]
-            f_benchmark = f_benchmark[100:self.next_t]
-
-        rsq = 1 - np.sum(((np.array(IH_sim) - np.array(f_benchmark)) ** 2)) / sum(
-            (np.array(f_benchmark) - np.mean(np.array(f_benchmark))) ** 2)
 
         return rsq
 
@@ -427,14 +345,11 @@ class SimReplication:
                     np.abs(total_imbalance) < 1e-2
             ), f"fPop unbalanced {total_imbalance} at time {self.instance.cal.calendar[t]}, {t}"
 
-
     def simulate_t(self, t_date, fixed_kappa_end_date):
 
         '''
         Advance the simulation 1 timepoint (day).
-
         Subroutine called in simulate_time_period
-
         :param t_date: [int] nonnegative integer corresponding to
             current timepoint to simulate.
         :param fixed_kappa_end_date: see simulate_time_period
@@ -516,20 +431,11 @@ class SimReplication:
         rate_PAIA = discrete_approx(np.full((A, L), epi.rho_A), step_size)
         rate_PYIY = discrete_approx(np.full((A, L), epi.rho_Y), step_size)
         rate_IHICU = discrete_approx(epi.nu * epi.etaICU, step_size)
-        rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH * (1 - epi.IHFR), step_size)
-        # TODO: delete this after debug
-        # rate_IYH = discrete_approx(
-        #     np.array([[(epi.pi[a, l]) * epi.Eta[a] * epi.rIH for l in range(L)] for a in range(A)]), step_size)
-       
-        # rate_IYICU = discrete_approx(
-        #     np.array([[(epi.pi[a, l]) * epi.Eta[a] * (1 - epi.rIH) for l in range(L)] for a in range(A)]),
-        #     step_size)
-
-        rate_IHD = discrete_approx((1 - epi.nu) * epi.gamma_IH *  (epi.IHFR), step_size)
+        rate_IHR = discrete_approx((1 - epi.nu) * epi.gamma_IH * epi.nu, step_size)
+        rate_IHD = discrete_approx((1 - epi.nu) * epi.gamma_IH * (1 - epi.nu), step_size)
         rate_ICUD = discrete_approx(epi.nu_ICU * epi.mu_ICU, step_size)
         rate_ICUR = discrete_approx((1 - epi.nu_ICU) * epi.gamma_ICU, step_size)
         rate_immune = discrete_approx(immune_evasion, step_size)
-
         for _t in range(step_size):
             # Dynamics for dS
 
@@ -594,7 +500,7 @@ class SimReplication:
                 )
                 PYIY = get_binomial_transition_quantity(v_groups._PY[_t], rate_PYIY)
                 v_groups._PY[_t + 1] = v_groups._PY[_t] + EPY - PYIY
-                # v_groups._ToPY[_t] = EPY
+
                 # Dynamics for PA
                 EPA = E_out - EPY
                 PAIA = get_binomial_transition_quantity(v_groups._PA[_t], rate_PAIA)
@@ -665,14 +571,14 @@ class SimReplication:
 
                 # Dynamics for IH
                 IHR = get_binomial_transition_quantity(v_groups._IH[_t], rate_IHR)
-                IHD = get_binomial_transition_quantity(
-                    v_groups._IH[_t] - IHR, rate_IHD
-                )
+                IHD = get_binomial_transition_quantity(v_groups._IH[_t] - IHR, rate_IHD)
                 v_groups._IHICU[_t] = get_binomial_transition_quantity(
                     v_groups._IH[_t] - IHR - IHD, rate_IHICU
-                    )
-                v_groups._IH[_t + 1] = v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - IHD - v_groups._IHICU[_t]
-                v_groups._ToIH[_t] = v_groups._IYIH[_t]
+                )
+                v_groups._IH[_t + 1] = (
+                        v_groups._IH[_t] + v_groups._IYIH[_t] - IHR - IHD - v_groups._IHICU[_t]
+                )
+
                 # Dynamics for ICU
                 ICUR = get_binomial_transition_quantity(v_groups._ICU[_t], rate_ICUR)
                 ICUD = get_binomial_transition_quantity(
@@ -692,7 +598,7 @@ class SimReplication:
                 v_groups._R[_t + 1] = (v_groups._R[_t] + IHR + IYR + IAR + ICUR - immune_escape_R)
 
                 # Dynamics for D
-                v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD + IHD
+                v_groups._D[_t + 1] = v_groups._D[_t] + ICUD + IYD+ IHD
                 v_groups._ToICUD[_t] = ICUD
                 v_groups._ToIYD[_t] = IYD
                 v_groups._ToIA[_t] = PAIA
@@ -723,8 +629,6 @@ class SimReplication:
 
             for attribute in self.tracking_vars:
                 setattr(v_groups, "_" + attribute, np.zeros((step_size, A, L)))
-
-        # self.epi_rand = epi
 
     def vaccine_schedule(self, t_date, rate_immune):
         """
@@ -860,7 +764,6 @@ class SimReplication:
             number generator last left off.
         Does not reset or resample the previously randomly sampled
             epidemiological parameters either.
-
         :return: [None]
         '''
 
@@ -879,7 +782,6 @@ class SimReplication:
             distribution, depending on whether self.rng is
             specified (depending on if simulation is run
             deterministically or not).
-
         :param n: [float] nonnegative value -- can be non-integer
             if running simulation deterministically, but must
             be integer to run simulation stochastically since
@@ -894,6 +796,6 @@ class SimReplication:
             return n * p
         else:
             return self.rng.binomial(np.round(n).astype(int), p)
-
-    def discrete_approx(self,rate, timestep):
+    
+    def discrete_approx(self, rate, timestep):
         return 1 - np.exp(-rate / timestep)
